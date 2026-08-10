@@ -236,6 +236,11 @@ func cmdNew(args []string) int {
 	if err := rec.Write(root); err != nil {
 		return fail(err)
 	}
+	// Writing a record opts the repository in, so the hooks start journaling from
+	// here without a separate setup step (see hook.OptedIn).
+	if err := os.MkdirAll(filepath.Join(root, ".dlog"), 0o755); err != nil {
+		warnings = append(warnings, "could not create .dlog/, hooks will stay off: "+err.Error())
+	}
 
 	// Answer an outstanding nudge here, where the session is known for certain,
 	// rather than leaving the Stop hook to infer it from the filesystem (prd §8.1).
@@ -551,8 +556,12 @@ func cmdLint(args []string) int {
 		return fail(err)
 	}
 	tracked, _ := repo.TrackedFiles()
-	entries, brokenJournal, _ := journal.LoadAll(root)
-	findings := adr.Lint(recs, broken, adr.Options{Tracked: tracked, RefExists: journal.RefResolver(entries)})
+	_, brokenJournal, _ := journal.LoadAll(root)
+	var refs []string
+	for _, r := range recs {
+		refs = append(refs, r.JournalRefs...)
+	}
+	findings := adr.Lint(recs, broken, adr.Options{Tracked: tracked, RefExists: journal.RefResolverFor(root, refs)})
 	for _, b := range brokenJournal {
 		findings = append(findings, adr.Finding{
 			Level: adr.Error, Path: b.Path,

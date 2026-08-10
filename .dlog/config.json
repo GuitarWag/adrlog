@@ -1,0 +1,8 @@
+{
+  "watch": ["cmd/**", "internal/**", "scripts/**"],
+  "ignore": ["**/*_test.go", "**/testdata/**", "docs/**"],
+  "journal_committed": false,
+  "min_files": 2,
+  "cooldown_seconds": 900,
+  "enforce": false
+}

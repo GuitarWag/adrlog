@@ -1,14 +1,25 @@
-BIN := .claude/bin/dlog
+BIN    := .claude/bin/dlog
+GLOBAL := $(HOME)/.local/bin/dlog
+SRC    := $(shell find . -name '*.go' -not -path './.git/*') go.mod
 
-.PHONY: install test check clean
+.PHONY: install install-global test check clean
 
-# The hooks invoke this path. Nothing works until it exists, which is why the
-# SessionStart entry in .claude/settings.json says so out loud (prd §12).
+# Local build, used by the test suite and the verification script.
 install: $(BIN)
 
-$(BIN): $(shell find . -name '*.go' -not -path './.git/*') go.mod
+$(BIN): $(SRC)
 	@mkdir -p $(dir $@)
 	go build -o $@ ./cmd/dlog
+
+# The real install. One binary on PATH, wired once in ~/.claude/settings.json,
+# and inert in any repository that has not opted in by having a .dlog/ directory
+# (see hook.OptedIn). A repo switches itself on the first time `dlog new` runs.
+install-global: $(GLOBAL)
+
+$(GLOBAL): $(SRC)
+	@mkdir -p $(dir $@)
+	go build -o $@ ./cmd/dlog
+	@echo "installed $@"
 
 test:
 	go vet ./...

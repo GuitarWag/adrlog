@@ -4,6 +4,7 @@
 
 | Record | Status | Date | Tags |
 |---|---|---|---|
+| [Install one global binary with per-repo opt-in](20260810-124629-install-one-global-binary-with-per.md) | accepted | 2026-08-10 | install, hooks |
 | [The nudge response-rate finding follows the gate not the prose](20260806-122755-the-nudge-response-rate-finding-follows.md) | accepted | 2026-08-06 | nudge, metrics |
 | [Journal appends do not fsync](20260806-122755-journal-appends-do-not-fsync.md) | accepted | 2026-08-06 | journal, performance |
 | [Decision records live at the shared repository root](20260806-122755-decision-records-live-at-the-shared.md) | accepted | 2026-08-06 | worktrees, storage |
@@ -12,7 +13,8 @@
 
 ```mermaid
 graph TD
-  n0["The nudge response-rate finding follows the gate not the pr…"]
-  n1["Journal appends do not fsync"]
-  n2["Decision records live at the shared repository root"]
+  n0["Install one global binary with per-repo opt-in"]
+  n1["The nudge response-rate finding follows the gate not the pr…"]
+  n2["Journal appends do not fsync"]
+  n3["Decision records live at the shared repository root"]
 ```

@@ -57,6 +57,17 @@ type Payload struct {
 	ToolInput            json.RawMessage `json:"tool_input"`
 }
 
+// OptedIn reports whether a repository has asked to be tracked, which it does by
+// having a .dlog/ directory at the shared root.
+//
+// The marker is a directory rather than a config file because config is optional
+// (prd §6.4) — every field has a default — so requiring one to switch tracking on
+// would mean inventing a file with nothing in it.
+func OptedIn(root string) bool {
+	info, err := os.Stat(filepath.Join(root, ".dlog"))
+	return err == nil && info.IsDir()
+}
+
 // Session prefers the payload, then the environment (prd §6.3).
 func (p Payload) Session() string {
 	if p.SessionID != "" {
@@ -93,9 +104,22 @@ func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 	}
 
+	// Installed globally, these hooks fire in every session, including ones with
+	// no repository at all. Not a git repo is not a problem to report, it is just
+	// nothing to do.
 	repo, err := gitx.Open(p.CWD)
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook %s: not a git repository: %v\n", event, err)
+		return 0
+	}
+	// A repository opts in by having .dlog/. Without this, a global install would
+	// apply the default watch list everywhere and nudge in repos nobody asked to
+	// track — and §4 is clear that spurious nudges are how the log becomes
+	// wallpaper and the response rate stops meaning anything.
+	//
+	// Silence here is a deliberate exception to "never fail silently" (prd §12),
+	// because an un-opted repo is not tracking-lost, it is tracking-never-asked-for.
+	// `dlog new` creates .dlog/, so writing one record switches a repo on.
+	if !OptedIn(repo.Root()) {
 		return 0
 	}
 	cfg, err := config.Load(repo.Root())
@@ -321,17 +345,15 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	return 2
 }
 
-// refResolver loads the journals only when some record actually points at one.
-// Reading and parsing every session's journal to answer no questions was a third
-// of this hook's runtime against a 50ms budget (prd G7).
+// refResolver reads only the sessions the records actually point at, and nothing
+// at all when they point at none. Loading every journal to answer no questions,
+// or to answer two, was most of this hook's runtime against a 50ms budget (G7).
 func refResolver(root string, recs []*adr.Record) func(string) bool {
+	var refs []string
 	for _, r := range recs {
-		if len(r.JournalRefs) > 0 {
-			entries, _, _ := journal.LoadAll(root)
-			return journal.RefResolver(entries)
-		}
+		refs = append(refs, r.JournalRefs...)
 	}
-	return nil
+	return journal.RefResolverFor(root, refs)
 }
 
 func toolPath(p Payload) string {

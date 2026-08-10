@@ -331,3 +331,37 @@ func RefResolver(entries []Entry) func(string) bool {
 	}
 	return func(ref string) bool { return known[ref] }
 }
+
+// RefResolverFor builds a resolver reading only the sessions the refs name.
+//
+// Loading every journal to check a handful of pointers meant one long-running
+// session's file paid for all of them: with a five-thousand-line journal present
+// it put the PostToolUse hook over its 50ms budget (prd G7), while the refs being
+// checked pointed at two entirely different sessions. Returns nil when there is
+// nothing to resolve, which disables the check rather than passing it.
+func RefResolverFor(root string, refs []string) func(string) bool {
+	sessions := map[string]bool{}
+	for _, ref := range refs {
+		if session, _, ok := strings.Cut(ref, "#"); ok && session != "" {
+			sessions[session] = true
+		}
+	}
+	if len(sessions) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(sessions))
+	for s := range sessions {
+		names = append(names, s)
+	}
+	sort.Strings(names)
+
+	var entries []Entry
+	for _, s := range names {
+		e, _, err := LoadSession(root, s)
+		if err != nil {
+			continue
+		}
+		entries = append(entries, e...)
+	}
+	return RefResolver(entries)
+}
