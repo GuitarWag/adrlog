@@ -28,8 +28,11 @@ jobs:
       - name: Check go.mod is tidy
         run: |
           go mod tidy
-          git diff --exit-code go.mod go.sum 2>/dev/null || {
-            echo "go.mod or go.sum is not tidy"; exit 1; }
+          # The `--` matters: it makes these pathspecs, so the missing go.sum of a
+          # dependency-free module matches nothing instead of exiting 128 and
+          # reporting a tidy module as untidy.
+          git diff --exit-code -- go.mod go.sum || {
+            echo "go.mod or go.sum is not tidy; run 'go mod tidy' and commit"; exit 1; }
 
       - run: go vet ./...
 
