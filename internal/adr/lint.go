@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"dlog/internal/globs"
+	"github.com/GuitarWag/adrlog/internal/globs"
 )
 
 // Levels. Only Error fails the command; a Warning is addressed to the human

@@ -21,8 +21,8 @@ func TestMatch(t *testing.T) {
 		// Single-segment wildcards stay within their segment.
 		{"migrations/*_balances.sql", "migrations/003_balances.sql", true},
 		{"migrations/*_balances.sql", "migrations/sub/003_balances.sql", false},
-		{"cmd/*", "cmd/dlog", true},
-		{"cmd/*", "cmd/dlog/main.go", false},
+		{"cmd/*", "cmd/adrlog", true},
+		{"cmd/*", "cmd/adrlog/main.go", false},
 
 		// A bare directory prefix covers its contents; forgetting the `/**` is easy
 		// and the failure (an ADR that matches nothing) is silent.
@@ -41,9 +41,9 @@ func TestMatch(t *testing.T) {
 }
 
 func TestOverlap(t *testing.T) {
-	files := []string{"internal/ledger/store.go", "cmd/dlog/main.go", "README.md"}
+	files := []string{"internal/ledger/store.go", "cmd/adrlog/main.go", "README.md"}
 	got := Overlap([]string{"internal/**", "cmd/**"}, files)
-	if len(got) != 2 || got[0] != "internal/ledger/store.go" || got[1] != "cmd/dlog/main.go" {
+	if len(got) != 2 || got[0] != "internal/ledger/store.go" || got[1] != "cmd/adrlog/main.go" {
 		t.Errorf("Overlap = %v", got)
 	}
 	if n := Overlap([]string{"nothing/**"}, files); n != nil {

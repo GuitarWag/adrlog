@@ -3,7 +3,7 @@ id: 20260806-122755-journal-appends-do-not-fsync
 title: Journal appends do not fsync
 status: accepted
 date: 2026-08-06
-worktree: dlog
+worktree: adrlog
 session: 38a4725d-b8f8-49e2-8845-a9d295b20227
 affects:
   - internal/journal/**

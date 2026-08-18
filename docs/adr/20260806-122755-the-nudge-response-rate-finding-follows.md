@@ -3,7 +3,7 @@ id: 20260806-122755-the-nudge-response-rate-finding-follows
 title: The nudge response-rate finding follows the gate not the prose
 status: accepted
 date: 2026-08-06
-worktree: dlog
+worktree: adrlog
 session: 38a4725d-b8f8-49e2-8845-a9d295b20227
 affects:
   - internal/state/**
@@ -27,7 +27,7 @@ it was built to catch.
 
 The finding fires whenever the rate is not above the floor — `rate <= 0.5` — so
 the instrument and the gate it feeds cannot disagree. `ResponseFloor` lives in
-`internal/state/state.go`, not in `.dlog/config.json`, because changing it changes
+`internal/state/state.go`, not in `.adrlog/config.json`, because changing it changes
 what the M3 gate means and that should not be a per-repo setting.
 
 ## Alternatives considered

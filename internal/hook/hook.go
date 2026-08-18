@@ -15,15 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"dlog/internal/adr"
-	"dlog/internal/config"
-	"dlog/internal/gitx"
-	"dlog/internal/globs"
-	"dlog/internal/journal"
-	"dlog/internal/state"
+	"github.com/GuitarWag/adrlog/internal/adr"
+	"github.com/GuitarWag/adrlog/internal/config"
+	"github.com/GuitarWag/adrlog/internal/gitx"
+	"github.com/GuitarWag/adrlog/internal/globs"
+	"github.com/GuitarWag/adrlog/internal/journal"
+	"github.com/GuitarWag/adrlog/internal/state"
 )
 
-// Events, as passed to `dlog hook <event>`.
+// Events, as passed to `adrlog hook <event>`.
 const (
 	SessionStart = "session-start"
 	Stop         = "stop"
@@ -58,13 +58,13 @@ type Payload struct {
 }
 
 // OptedIn reports whether a repository has asked to be tracked, which it does by
-// having a .dlog/ directory at the shared root.
+// having a .adrlog/ directory at the shared root.
 //
 // The marker is a directory rather than a config file because config is optional
 // (prd §6.4) — every field has a default — so requiring one to switch tracking on
 // would mean inventing a file with nothing in it.
 func OptedIn(root string) bool {
-	info, err := os.Stat(filepath.Join(root, ".dlog"))
+	info, err := os.Stat(filepath.Join(root, ".adrlog"))
 	return err == nil && info.IsDir()
 }
 
@@ -92,14 +92,14 @@ var eventName = map[string]string{
 // silently — invisible tracking loss is the worst shape this can take (prd §12).
 func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if _, ok := eventName[event]; !ok {
-		fmt.Fprintf(stderr, "dlog hook: unknown event %q\n", event)
+		fmt.Fprintf(stderr, "adrlog hook: unknown event %q\n", event)
 		return 1
 	}
 
 	var p Payload
 	if data, err := io.ReadAll(stdin); err == nil && len(strings.TrimSpace(string(data))) > 0 {
 		if err := json.Unmarshal(data, &p); err != nil {
-			fmt.Fprintf(stderr, "dlog hook %s: unreadable payload: %v\n", event, err)
+			fmt.Fprintf(stderr, "adrlog hook %s: unreadable payload: %v\n", event, err)
 			return 0
 		}
 	}
@@ -111,20 +111,20 @@ func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		return 0
 	}
-	// A repository opts in by having .dlog/. Without this, a global install would
+	// A repository opts in by having .adrlog/. Without this, a global install would
 	// apply the default watch list everywhere and nudge in repos nobody asked to
 	// track — and §4 is clear that spurious nudges are how the log becomes
 	// wallpaper and the response rate stops meaning anything.
 	//
 	// Silence here is a deliberate exception to "never fail silently" (prd §12),
 	// because an un-opted repo is not tracking-lost, it is tracking-never-asked-for.
-	// `dlog new` creates .dlog/, so writing one record switches a repo on.
+	// `adrlog new` creates .adrlog/, so writing one record switches a repo on.
 	if !OptedIn(repo.Root()) {
 		return 0
 	}
 	cfg, err := config.Load(repo.Root())
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook %s: %v\n", event, err)
+		fmt.Fprintf(stderr, "adrlog hook %s: %v\n", event, err)
 	}
 
 	switch event {
@@ -145,7 +145,7 @@ func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 func record(repo *gitx.Repo, cfg config.Config, p Payload, event string, stderr io.Writer) (journal.Entry, bool) {
 	changed, err := repo.ChangedFiles()
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook: reading changed files: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook: reading changed files: %v\n", err)
 	}
 	changed = notIgnored(cfg, changed)
 	if len(changed) > changedFileCap {
@@ -167,7 +167,7 @@ func record(repo *gitx.Repo, cfg config.Config, p Payload, event string, stderr 
 	}
 	written, err := journal.Append(repo.Root(), e)
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook: journal append failed: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook: journal append failed: %v\n", err)
 		return e, false
 	}
 	return written, true
@@ -178,7 +178,7 @@ func sessionStart(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr 
 
 	recs, broken, err := adr.LoadAll(repo.Root())
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook session-start: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook session-start: %v\n", err)
 	}
 	var proposed []string
 	for _, r := range recs {
@@ -194,7 +194,7 @@ func sessionStart(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr 
 	if len(broken) > 0 {
 		// Not a silent skip, here least of all: a record nothing can read is
 		// invisible to every query until someone is told (prd §6.1).
-		lines = append(lines, fmt.Sprintf("%d decision record(s) cannot be parsed; run `dlog lint`.", len(broken)))
+		lines = append(lines, fmt.Sprintf("%d decision record(s) cannot be parsed; run `adrlog lint`.", len(broken)))
 	}
 
 	if events, err := state.LoadAll(repo.Root()); err == nil {
@@ -225,13 +225,13 @@ func stop(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr io.Write
 
 	events, err := state.Load(root, worktree)
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook stop: reading nudge ledger: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook stop: reading nudge ledger: %v\n", err)
 	}
 
-	// Close out a nudge this session answered by writing a record. `dlog new`
+	// Close out a nudge this session answered by writing a record. `adrlog new`
 	// already acks when it knows the session, so this is the fallback for a record
 	// written by hand. The other answer, an explicit decline, arrives through
-	// `dlog ack --none`.
+	// `adrlog ack --none`.
 	if nudge, open := state.Outstanding(events, session); open && session != "" {
 		if since, err := time.Parse(time.RFC3339, nudge.TS); err == nil && recordedBy(root, session, since) {
 			if err := state.Append(root, worktree, state.Event{Kind: state.KindAck, Session: session, How: state.AckADR}); err == nil {
@@ -242,7 +242,7 @@ func stop(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr io.Write
 
 	changed, err := repo.ChangedFiles()
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook stop: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook stop: %v\n", err)
 		return 0
 	}
 	watched := watchedFiles(cfg, changed)
@@ -263,7 +263,7 @@ func stop(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr io.Write
 		Kind: state.KindNudge, Session: session, Fingerprint: state.Fingerprint(watched), Files: len(watched),
 	}, time.Duration(cfg.CooldownSeconds)*time.Second)
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook stop: recording nudge: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook stop: recording nudge: %v\n", err)
 		return 0
 	}
 	if !nudged {
@@ -295,8 +295,8 @@ func nudgeMessage(watched []string) string {
 	}
 	// Both branches are offered plainly. A record written to clear a prompt is
 	// worse than no record (prd §4), so declining has to be as easy as complying.
-	b.WriteString("\nIf a design decision was made here, write it down: `dlog new \"<title>\" --affects '<glob>'`.\n")
-	b.WriteString("If nothing was decided, say so and run `dlog ack --none` — that is a complete answer, and it keeps the log honest.")
+	b.WriteString("\nIf a design decision was made here, write it down: `adrlog new \"<title>\" --affects '<glob>'`.\n")
+	b.WriteString("If nothing was decided, say so and run `adrlog ack --none` — that is a complete answer, and it keeps the log honest.")
 	return b.String()
 }
 
@@ -313,7 +313,7 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	root := repo.Root()
 	recs, broken, err := adr.LoadAll(root)
 	if err != nil {
-		fmt.Fprintf(stderr, "dlog hook post-tool-use: %v\n", err)
+		fmt.Fprintf(stderr, "adrlog hook post-tool-use: %v\n", err)
 		return 0
 	}
 
@@ -323,20 +323,20 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	// heard about it, which is the silent skip §6.1 rules out wearing a hat.
 	if len(broken) == 0 {
 		if err := adr.WriteIndex(root, recs); err != nil {
-			fmt.Fprintf(stderr, "dlog hook post-tool-use: index: %v\n", err)
+			fmt.Fprintf(stderr, "adrlog hook post-tool-use: index: %v\n", err)
 		}
 	}
 
 	// No Tracked, so no rot check. This hook reports errors only — the warnings
 	// below are dropped on the floor — and scanning every tracked file for every
-	// affects glob to produce them was most of this hook's runtime. `dlog lint`
+	// affects glob to produce them was most of this hook's runtime. `adrlog lint`
 	// still runs the full check for the human and for CI, where no budget applies.
 	findings := adr.Lint(recs, broken, adr.Options{RefExists: refResolver(root, recs)})
 	if !adr.HasErrors(findings) {
 		return 0
 	}
 	// Exit 2 hands the defect back to Claude on stderr (prd §8).
-	fmt.Fprintln(stderr, "dlog lint found problems in the record you just wrote:")
+	fmt.Fprintln(stderr, "adrlog lint found problems in the record you just wrote:")
 	for _, f := range findings {
 		if f.Level == adr.Error {
 			fmt.Fprintf(stderr, "  %s: %s\n", filepath.Base(f.Path), f.Msg)

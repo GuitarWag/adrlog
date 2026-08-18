@@ -1,6 +1,6 @@
 // Package gitx resolves repository state through the git CLI.
 //
-// Everything dlog knows about the world comes from git and the filesystem — no
+// Everything adrlog knows about the world comes from git and the filesystem — no
 // network, no service, no LLM (prd §4 non-goals) — which is also what keeps the
 // rest of the tool testable against a scratch repo.
 package gitx
@@ -55,7 +55,7 @@ func Open(dir string) (*Repo, error) {
 	}
 
 	// The shared root, not the worktree (prd §5.2). --show-toplevel alone would
-	// scatter .dlog/ across five parallel sessions and lose journals when an
+	// scatter .adrlog/ across five parallel sessions and lose journals when an
 	// unchanged worktree is auto-removed at session end.
 	common := lines[0]
 	if !filepath.IsAbs(common) {
@@ -76,7 +76,7 @@ func Open(dir string) (*Repo, error) {
 	return r, nil
 }
 
-// Root is the shared repository root. All dlog state — docs/adr/ and .dlog/ —
+// Root is the shared repository root. All adrlog state — docs/adr/ and .adrlog/ —
 // resolves against this, so five worktrees write to one place.
 func (r *Repo) Root() string { return r.root }
 

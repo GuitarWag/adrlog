@@ -1,4 +1,4 @@
-// Package config loads .dlog/config.json (prd §6.4). Every field is optional;
+// Package config loads .adrlog/config.json (prd §6.4). Every field is optional;
 // a missing file is not an error, it is the defaults.
 package config
 
@@ -42,7 +42,7 @@ func Default() Config {
 }
 
 // Path is where config lives, under the shared root so all worktrees agree.
-func Path(root string) string { return filepath.Join(root, ".dlog", "config.json") }
+func Path(root string) string { return filepath.Join(root, ".adrlog", "config.json") }
 
 // Load reads the config, falling back to defaults for a missing file. A file that
 // exists but does not parse is an error, never a silent reset to defaults — a

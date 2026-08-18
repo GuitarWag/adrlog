@@ -28,7 +28,7 @@ func scratchRepo(t *testing.T, optIn bool) string {
 	os.MkdirAll(filepath.Join(dir, "internal"), 0o755)
 	os.WriteFile(filepath.Join(dir, "internal", "a.go"), []byte("package a\n"), 0o644)
 	if optIn {
-		os.MkdirAll(filepath.Join(dir, ".dlog"), 0o755)
+		os.MkdirAll(filepath.Join(dir, ".adrlog"), 0o755)
 	}
 	return dir
 }
@@ -45,7 +45,7 @@ func run(t *testing.T, event, dir string, payload map[string]any) (int, string, 
 	return code, out.String(), errb.String()
 }
 
-// Installed globally, the hooks fire in every repository. One without .dlog/ has
+// Installed globally, the hooks fire in every repository. One without .adrlog/ has
 // not asked to be tracked, and must cost it nothing: no journal, no nudge, no
 // output on either stream.
 func TestUnoptedRepoIsUntouched(t *testing.T) {
@@ -59,8 +59,8 @@ func TestUnoptedRepoIsUntouched(t *testing.T) {
 			t.Errorf("%s: spoke in an un-opted repo\nstdout: %q\nstderr: %q", event, out, errOut)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".dlog")); !os.IsNotExist(err) {
-		t.Error("hooks created .dlog/ in a repo that never opted in")
+	if _, err := os.Stat(filepath.Join(dir, ".adrlog")); !os.IsNotExist(err) {
+		t.Error("hooks created .adrlog/ in a repo that never opted in")
 	}
 }
 
@@ -72,7 +72,7 @@ func TestOptedInRepoJournals(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, errOut)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, ".dlog", "journal", "sess1.jsonl"))
+	data, err := os.ReadFile(filepath.Join(dir, ".adrlog", "journal", "sess1.jsonl"))
 	if err != nil {
 		t.Fatalf("no journal written: %v", err)
 	}

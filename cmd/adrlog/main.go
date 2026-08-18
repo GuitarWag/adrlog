@@ -1,4 +1,4 @@
-// Command dlog records architecture decisions and agent reasoning across
+// Command adrlog records architecture decisions and agent reasoning across
 // parallel Claude Code sessions. See prd.md.
 //
 // Scope: this binary implements M1 and M2 (prd §0, §13). Retrieval, audit and
@@ -17,26 +17,26 @@ import (
 	"strings"
 	"time"
 
-	"dlog/internal/adr"
-	"dlog/internal/config"
-	"dlog/internal/gitx"
-	"dlog/internal/globs"
-	"dlog/internal/hook"
-	"dlog/internal/journal"
-	"dlog/internal/state"
+	"github.com/GuitarWag/adrlog/internal/adr"
+	"github.com/GuitarWag/adrlog/internal/config"
+	"github.com/GuitarWag/adrlog/internal/gitx"
+	"github.com/GuitarWag/adrlog/internal/globs"
+	"github.com/GuitarWag/adrlog/internal/hook"
+	"github.com/GuitarWag/adrlog/internal/journal"
+	"github.com/GuitarWag/adrlog/internal/state"
 )
 
-const usage = `dlog — decision tracking for parallel agent sessions
+const usage = `adrlog — decision tracking for parallel agent sessions
 
-  dlog new <title>   [--status --supersedes --depends-on --affects --agent --tags --session --no-refs]
-  dlog list          [--status --tag --affects]
-  dlog show <id>
-  dlog lint
-  dlog index
-  dlog journal       [--session --since --agent --grep --export <session>]
-  dlog ack           --none
-  dlog drift
-  dlog hook <event>  session-start | stop | subagent-stop | pre-compact | post-tool-use
+  adrlog new <title>   [--status --supersedes --depends-on --affects --agent --tags --session --no-refs]
+  adrlog list          [--status --tag --affects]
+  adrlog show <id>
+  adrlog lint
+  adrlog index
+  adrlog journal       [--session --since --agent --grep --export <session>]
+  adrlog ack           --none
+  adrlog drift
+  adrlog hook <event>  session-start | stop | subagent-stop | pre-compact | post-tool-use
 
 Every command takes --json.
 `
@@ -68,20 +68,20 @@ func run(args []string) int {
 		return cmdDrift(rest)
 	case "hook":
 		if len(rest) == 0 {
-			fmt.Fprintln(os.Stderr, "dlog hook: need an event")
+			fmt.Fprintln(os.Stderr, "adrlog hook: need an event")
 			return 2
 		}
 		return hook.Run(rest[0], os.Stdin, os.Stdout, os.Stderr)
 	case "init", "ctx", "audit", "prune":
 		// Gated behind the M3+ evidence gate (prd §0, §13). Saying so beats a stub
 		// that returns an empty result indistinguishable from a real one.
-		fmt.Fprintf(os.Stderr, "dlog %s: not built yet — gated behind the v0.1 evidence gate (prd §13).\n", cmd)
+		fmt.Fprintf(os.Stderr, "adrlog %s: not built yet — gated behind the v0.1 evidence gate (prd §13).\n", cmd)
 		return 2
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "dlog: unknown command %q\n\n%s", cmd, usage)
+		fmt.Fprintf(os.Stderr, "adrlog: unknown command %q\n\n%s", cmd, usage)
 		return 2
 	}
 }
@@ -97,7 +97,7 @@ func open() (*gitx.Repo, config.Config, error) {
 }
 
 func fail(err error) int {
-	fmt.Fprintln(os.Stderr, "dlog:", err)
+	fmt.Fprintln(os.Stderr, "adrlog:", err)
 	return 1
 }
 
@@ -108,7 +108,7 @@ func emit(v any) {
 }
 
 // parseAfterPositional lets flags follow the positional argument, which is the
-// documented shape of `dlog new <title> [flags]` (prd §7). Go's flag package
+// documented shape of `adrlog new <title> [flags]` (prd §7). Go's flag package
 // stops at the first non-flag token, so parsing the raw args would quietly fold
 // every flag into the title — a wrong id and a dropped --supersedes, with no
 // error anywhere.
@@ -158,18 +158,18 @@ func cmdNew(args []string) int {
 	}
 	title := strings.TrimSpace(strings.Join(words, " "))
 	if title == "" {
-		fmt.Fprintln(os.Stderr, "dlog new: need a title")
+		fmt.Fprintln(os.Stderr, "adrlog new: need a title")
 		return 2
 	}
 	// A title is untrusted input reaching a line-oriented format. A newline in it
 	// wrote extra frontmatter fields and dropped the rest of the title, producing
 	// a record that lints clean and describes a different decision.
 	if err := adr.CheckScalar("title", title); err != nil {
-		fmt.Fprintln(os.Stderr, "dlog new:", err)
+		fmt.Fprintln(os.Stderr, "adrlog new:", err)
 		return 2
 	}
 	if !containsStr(adr.Statuses, *status) {
-		fmt.Fprintf(os.Stderr, "dlog new: invalid status %q, want one of %s\n", *status, strings.Join(adr.Statuses, ", "))
+		fmt.Fprintf(os.Stderr, "adrlog new: invalid status %q, want one of %s\n", *status, strings.Join(adr.Statuses, ", "))
 		return 2
 	}
 
@@ -238,8 +238,8 @@ func cmdNew(args []string) int {
 	}
 	// Writing a record opts the repository in, so the hooks start journaling from
 	// here without a separate setup step (see hook.OptedIn).
-	if err := os.MkdirAll(filepath.Join(root, ".dlog"), 0o755); err != nil {
-		warnings = append(warnings, "could not create .dlog/, hooks will stay off: "+err.Error())
+	if err := os.MkdirAll(filepath.Join(root, ".adrlog"), 0o755); err != nil {
+		warnings = append(warnings, "could not create .adrlog/, hooks will stay off: "+err.Error())
 	}
 
 	// Answer an outstanding nudge here, where the session is known for certain,
@@ -497,7 +497,7 @@ func cmdShow(args []string) int {
 		return 2
 	}
 	if len(words) != 1 {
-		fmt.Fprintln(os.Stderr, "dlog show: need exactly one id")
+		fmt.Fprintln(os.Stderr, "adrlog show: need exactly one id")
 		return 2
 	}
 	repo, _, err := open()
@@ -543,7 +543,7 @@ func cmdLint(args []string) int {
 		return 2
 	}
 	if *fix {
-		fmt.Fprintln(os.Stderr, "dlog lint --fix: not built yet (prd §13, M5)")
+		fmt.Fprintln(os.Stderr, "adrlog lint --fix: not built yet (prd §13, M5)")
 		return 2
 	}
 	repo, _, err := open()
@@ -607,7 +607,7 @@ func cmdIndex(args []string) int {
 		if *asJSON {
 			emit(map[string]any{"path": adr.IndexPath, "written": false, "unreadable": brokenPaths(broken)})
 		} else {
-			fmt.Fprintf(os.Stderr, "dlog index: refusing to write, %d record(s) unreadable:\n", len(broken))
+			fmt.Fprintf(os.Stderr, "adrlog index: refusing to write, %d record(s) unreadable:\n", len(broken))
 			for _, b := range broken {
 				fmt.Fprintf(os.Stderr, "  %s\n", b.Err)
 			}
@@ -719,11 +719,11 @@ func cmdAck(args []string) int {
 		return 2
 	}
 	if *drift != "" {
-		fmt.Fprintln(os.Stderr, "dlog ack --drift: not built yet (prd §13, M4)")
+		fmt.Fprintln(os.Stderr, "adrlog ack --drift: not built yet (prd §13, M4)")
 		return 2
 	}
 	if !*none {
-		fmt.Fprintln(os.Stderr, "dlog ack: need --none")
+		fmt.Fprintln(os.Stderr, "adrlog ack: need --none")
 		return 2
 	}
 	repo, _, err := open()

@@ -3,7 +3,7 @@ id: 20260806-122755-decision-records-live-at-the-shared
 title: Decision records live at the shared repository root
 status: accepted
 date: 2026-08-06
-worktree: dlog
+worktree: adrlog
 session: 38a4725d-b8f8-49e2-8845-a9d295b20227
 affects:
   - internal/gitx/**
@@ -18,7 +18,7 @@ tags: [worktrees, storage]
 ## Context
 
 prd §5.2 lists `docs/adr/<id>.md` in the shared-state table, which puts records at
-the shared repository root alongside `.dlog/`. The M1 done-condition in §13 says
+the shared repository root alongside `.adrlog/`. The M1 done-condition in §13 says
 five concurrent worktrees "each create an ADR and merge cleanly with no conflict",
 and merging only means something if each record is committed on its own branch.
 The two readings cannot both hold, and the choice changes where every record is
@@ -26,7 +26,7 @@ written.
 
 ## Decision
 
-Records resolve against the shared root, the same as `.dlog/`:
+Records resolve against the shared root, the same as `.adrlog/`:
 `dirname(git rev-parse --git-common-dir)`. A record written from any of five
 worktrees lands in one directory.
 

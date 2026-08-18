@@ -22,7 +22,7 @@ import (
 )
 
 // Dir is where journals live, relative to the shared root.
-const Dir = ".dlog/journal"
+const Dir = ".adrlog/journal"
 
 // SummaryLimit caps the stored summary. Entries stay small because the full
 // reasoning is reachable through the transcript path (prd §6.2).

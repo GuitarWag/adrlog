@@ -29,7 +29,7 @@ const (
 // How a nudge was answered.
 const (
 	AckADR  = "adr"  // an ADR appeared in the session
-	AckNone = "none" // the agent explicitly declined, via `dlog ack --none`
+	AckNone = "none" // the agent explicitly declined, via `adrlog ack --none`
 )
 
 // ResponseWindow is the rolling window for the response rate (prd §8.1).
@@ -58,7 +58,7 @@ type Event struct {
 // a nudge fingerprint from worktree A must not suppress a nudge in worktree B:
 // their changed-file sets differ, so sharing this would be wrong, not just racy.
 func Dir(root, worktree string) string {
-	return filepath.Join(root, ".dlog", "state", worktree)
+	return filepath.Join(root, ".adrlog", "state", worktree)
 }
 
 func ledgerPath(root, worktree string) string {
@@ -148,7 +148,7 @@ func Load(root, worktree string) ([]Event, error) {
 
 // LoadAll reads every worktree's ledger, for the repo-wide response rate.
 func LoadAll(root string) ([]Event, error) {
-	dirs, err := filepath.Glob(filepath.Join(root, ".dlog", "state", "*", "nudges.jsonl"))
+	dirs, err := filepath.Glob(filepath.Join(root, ".adrlog", "state", "*", "nudges.jsonl"))
 	if err != nil {
 		return nil, err
 	}

@@ -1,9 +1,9 @@
-# dlog: decision tracking for parallel agent sessions
+# adrlog: decision tracking for parallel agent sessions
 
 **Status:** draft
 **Author:** Wagner
 **Date:** 2026-08-04
-**Name:** `dlog` is provisional. It collides with a few Go logging packages, so rename before publishing anything.
+**Name:** `adrlog`. The tool was called `dlog` while it was private. That name collides with several Go logging packages, so it was renamed before publication.
 
 ---
 
@@ -27,9 +27,9 @@ A single Go binary that records architecture decisions and agent reasoning acros
 Two tiers:
 
 - **ADRs** in `docs/adr/*.md`, one file per decision, markdown with YAML frontmatter. Durable, reviewed, committed.
-- **Journal** in `.dlog/journal/*.jsonl`, one line per agent turn, written automatically. Ephemeral by nature, cheap, never blocks anything.
+- **Journal** in `.adrlog/journal/*.jsonl`, one line per agent turn, written automatically. Ephemeral by nature, cheap, never blocks anything.
 
-The binary is also the hook implementation. `dlog hook stop`, `dlog hook subagent-stop`, and so on dispatch on subcommand, so four Claude Code lifecycle hooks cost one build artifact and roughly 2ms of process startup each.
+The binary is also the hook implementation. `adrlog hook stop`, `adrlog hook subagent-stop`, and so on dispatch on subcommand, so four Claude Code lifecycle hooks cost one build artifact and roughly 2ms of process startup each.
 
 ---
 
@@ -73,11 +73,11 @@ What neither has:
 | # | Goal | Measured by |
 |---|---|---|
 | G1 | No id or filename collisions across concurrent worktrees | 5 concurrent sessions creating ADRs produce zero conflicts |
-| G2 | Subagent reasoning survives context discard | `dlog journal --session X` recovers a rejected alternative that never reached an ADR |
+| G2 | Subagent reasoning survives context discard | `adrlog journal --session X` recovers a rejected alternative that never reached an ADR |
 | G3 | Agents see the decision that governs the code they are editing | Recall of hand-labelled relevant records above 0.85; median under 2k tokens injected; fewer than `ctx_limit` records returned when scores fall off (section 9) |
 | G4 | Chains are queryable, not prose | `supersedes` / `depends_on` traversable, reciprocity enforced by lint |
 | G5 | The nudge produces records, not noise | Response rate: ADRs created or explicit no-decision replies within one turn of a nudge, above 0.5 over a rolling 30 days (section 8.1). Volume stays sane: median growth under 8 ADRs per week |
-| G6 | Bootstrap is not a blank page | `dlog audit` on the target repo surfaces at least 15 decision-shaped artifacts with file evidence |
+| G6 | Bootstrap is not a blank page | `adrlog audit` on the target repo surfaces at least 15 decision-shaped artifacts with file evidence |
 | G7 | Hooks are invisible when there is nothing to say | Zero stdout on a turn with no watched changes; p99 hook latency under 50ms |
 
 **What has no metric, on purpose.** Filler — a plausible-sounding record whose Alternatives section was fabricated to satisfy a check — is the worst failure mode and is undetectable deterministically, because generating plausible text is precisely what the agent is good at. No lint rule fixes this, and a lint rule *rejecting* empty Alternatives would make it worse by training the agent to invent rejected options. So lint treats an empty Alternatives section on an accepted record as a warning addressed to the human reviewer, never a failure the agent must clear. The defenses that remain are behavioral, not mechanical: a high bar in the skill, a narrow `watch` list, a non-blocking default, and a human occasionally reading the log.
@@ -99,7 +99,7 @@ What neither has:
 
 `YYYYMMDD-HHMMSS-slug`, for example `20260804-143210-store-list-price-and-effective-price`. Filename stem equals the id. Slug is the first six words of the title, lowercased.
 
-Collision requires the same second and the same slug. `dlog new` appends `-2` if the path exists, and `dlog lint` catches duplicates regardless.
+Collision requires the same second and the same slug. `adrlog new` appends `-2` if the path exists, and `adrlog lint` catches duplicates regardless.
 
 Sortable, needs no coordination between worktrees, and readable at a glance.
 
@@ -113,24 +113,24 @@ All state resolves against the shared repository instead:
 root = dirname(git rev-parse --git-common-dir)
 ```
 
-Verified: from inside a worktree this returns the main checkout, not the worktree. `.dlog/` therefore always lives in one place regardless of which of five sessions is writing.
+Verified: from inside a worktree this returns the main checkout, not the worktree. `.adrlog/` therefore always lives in one place regardless of which of five sessions is writing.
 
 Sharing the root reintroduces shared mutable state, so each piece of it gets an explicit concurrency posture rather than an assumption:
 
 | State | Written by | Posture |
 |---|---|---|
 | `docs/adr/<id>.md` | one session each | Safe by construction: timestamp ids mean no two sessions target the same path |
-| `.dlog/journal/<session>.jsonl` | its own session | Safe by construction: one writer per file |
-| `.dlog/state/` | every session | **Keyed per worktree**: `state/<worktree>/`. A nudge fingerprint from worktree A must not suppress a nudge in worktree B, because their changed-file sets differ. Sharing this state would be wrong, not just racy |
+| `.adrlog/journal/<session>.jsonl` | its own session | Safe by construction: one writer per file |
+| `.adrlog/state/` | every session | **Keyed per worktree**: `state/<worktree>/`. A nudge fingerprint from worktree A must not suppress a nudge in worktree B, because their changed-file sets differ. Sharing this state would be wrong, not just racy |
 | `docs/adr/README.md` | every session, on any ADR write | **Idempotent last-write-wins by design**: generated deterministically from the full ADR set, so whichever regeneration runs last is correct. A stale index between writes is tolerated; the pre-commit hook regenerates before commit, which is the point that matters |
-| Supersede back-link | the superseding session | **Edits a file another session may hold dirty.** `dlog new --supersedes` warns when the target file has uncommitted modifications, and lint catches broken reciprocity in every session afterward, so a lost write is detected rather than silent |
+| Supersede back-link | the superseding session | **Edits a file another session may hold dirty.** `adrlog new --supersedes` warns when the target file has uncommitted modifications, and lint catches broken reciprocity in every session afterward, so a lost write is detected rather than silent |
 
 ### 5.3 The graph
 
 Four link types, all frontmatter arrays of ids:
 
 - `depends_on`: this decision builds on that conclusion.
-- `supersedes` / `superseded_by`: reciprocal, maintained automatically by `dlog new --supersedes`.
+- `supersedes` / `superseded_by`: reciprocal, maintained automatically by `adrlog new --supersedes`.
 - `journal_refs`: `session#seq` pointers into the journal, linking a record to the turns that produced it.
 
 A DAG, not a tree. Parallel sessions converge and multiple parents are the normal case.
@@ -151,8 +151,8 @@ affects:
 
 Cost: the globs need maintaining, and more importantly they are written at the moment of least certainty — by the agent, at creation time, before the decision has fully landed in code. A wrong `affects` at birth corrupts everything downstream at once: `journal_refs` inference, retrieval, and drift all key off it, and their errors will be correlated. Two mitigations:
 
-- **Birth check.** `dlog new` invoked with a session compares the supplied globs against the union of `changed_files` in that session's journal. Globs matching none of the session's changed files, or session changes in watched paths matched by no glob, produce a warning in the command output that the agent sees and can act on immediately. Cheap, deterministic, and it runs at the only moment ground truth is available.
-- **Rot check.** `dlog lint` warns on globs matching zero files in the current tree; `dlog drift` reports the same as orphans.
+- **Birth check.** `adrlog new` invoked with a session compares the supplied globs against the union of `changed_files` in that session's journal. Globs matching none of the session's changed files, or session changes in watched paths matched by no glob, produce a warning in the command output that the agent sees and can act on immediately. Cheap, deterministic, and it runs at the only moment ground truth is available.
+- **Rot check.** `adrlog lint` warns on globs matching zero files in the current tree; `adrlog drift` reports the same as orphans.
 
 ---
 
@@ -185,7 +185,7 @@ tags: [pricing, billing]
 ## Consequences
 ```
 
-Required: `id`, `title`, `status`, `date`. Everything else optional but populated by `dlog new`.
+Required: `id`, `title`, `status`, `date`. Everything else optional but populated by `adrlog new`.
 
 Body sections are fixed and checked by lint. An accepted record with an empty Alternatives section is a *warning*, surfaced to humans in `lint` and `drift` output — not a failure the agent must clear. Failing on it would train the agent to fabricate rejected options, which is worse than an honest empty section (see section 4).
 
@@ -193,7 +193,7 @@ Parse a deliberately small YAML subset by hand (scalars, inline arrays, block se
 
 ### 6.2 Journal entry
 
-One JSONL line per turn, appended to `.dlog/journal/<session>.jsonl`:
+One JSONL line per turn, appended to `.adrlog/journal/<session>.jsonl`:
 
 ```json
 {"seq":12,"ts":"2026-08-04T14:32:10Z","event":"SubagentStop","session":"4f2a91c",
@@ -208,11 +208,11 @@ One JSONL line per turn, appended to `.dlog/journal/<session>.jsonl`:
 
 Append-only. Never rewritten. Concurrent appends from parallel sessions land in different files, so no locking is needed.
 
-Whether `.dlog/journal/` is committed is a per-repo choice, not a default we impose. `dlog init` asks, records the answer as `journal_committed` in config, and manages `.gitignore` to match. Committed journals make agent reasoning reviewable in PRs at the cost of noise in every diff. For repos that leave them out, `dlog journal --export <session>` writes a single readable markdown trace suitable for pasting into a PR comment, so a specific session can be shared without committing all of them.
+Whether `.adrlog/journal/` is committed is a per-repo choice, not a default we impose. `adrlog init` asks, records the answer as `journal_committed` in config, and manages `.gitignore` to match. Committed journals make agent reasoning reviewable in PRs at the cost of noise in every diff. For repos that leave them out, `adrlog journal --export <session>` writes a single readable markdown trace suitable for pasting into a PR comment, so a specific session can be shared without committing all of them.
 
 ### 6.3 Inferring `journal_refs`
 
-`dlog new` populates `journal_refs` automatically rather than requiring the caller to pass turn pointers it does not know.
+`adrlog new` populates `journal_refs` automatically rather than requiring the caller to pass turn pointers it does not know.
 
 Selection, in order:
 
@@ -225,7 +225,7 @@ Inference will sometimes attach a turn that had nothing to do with the decision.
 
 ### 6.4 Config
 
-`.dlog/config.json`, all fields optional:
+`.adrlog/config.json`, all fields optional:
 
 ```json
 {
@@ -250,22 +250,22 @@ Inference will sometimes attach a turn that had nothing to do with the decision.
 Every command takes `--json`. Agents parse machine output; humans read the default. This is not optional garnish, it is what makes the tool usable from a skill without brittle text scraping.
 
 ```
-dlog init                      scaffold docs/adr, .dlog, hooks config, skill, command
-dlog new <title>               [--status --supersedes --depends-on --affects --agent --tags]
-dlog list                      [--status --tag --affects]
-dlog show <id>
-dlog lint                      [--fix]   exit 1 on problems
-dlog index                     regenerate docs/adr/README.md (table + mermaid)
-dlog ctx <topic>               [--files a,b,c] [--limit N]   relevance-ranked records
-dlog journal                   [--session --since --agent --grep] [--export <session>]
-dlog audit                     enumerate decision-shaped artifacts with file evidence
-dlog drift                     [--since 90d]   stale, orphaned, unresolved
-dlog ack                       --none (record a no-decision reply to a nudge) | --drift <id>
-dlog hook <event>              session-start | stop | subagent-stop | pre-compact | post-tool-use
-dlog prune                     drop journal files past retention
+adrlog init                      scaffold docs/adr, .adrlog, hooks config, skill, command
+adrlog new <title>               [--status --supersedes --depends-on --affects --agent --tags]
+adrlog list                      [--status --tag --affects]
+adrlog show <id>
+adrlog lint                      [--fix]   exit 1 on problems
+adrlog index                     regenerate docs/adr/README.md (table + mermaid)
+adrlog ctx <topic>               [--files a,b,c] [--limit N]   relevance-ranked records
+adrlog journal                   [--session --since --agent --grep] [--export <session>]
+adrlog audit                     enumerate decision-shaped artifacts with file evidence
+adrlog drift                     [--since 90d]   stale, orphaned, unresolved
+adrlog ack                       --none (record a no-decision reply to a nudge) | --drift <id>
+adrlog hook <event>              session-start | stop | subagent-stop | pre-compact | post-tool-use
+adrlog prune                     drop journal files past retention
 ```
 
-`dlog lint --fix` repairs only mechanical defects: missing reciprocal `superseded_by`, status not flipped on a superseded record, filename stem out of sync with id. It never touches prose.
+`adrlog lint --fix` repairs only mechanical defects: missing reciprocal `superseded_by`, status not flipped on a superseded record, filename stem out of sync with id. It never touches prose.
 
 ---
 
@@ -287,15 +287,15 @@ Payload fields on `PreCompact` differ from the Stop family and may not carry a c
 
 The `Stop` check defaults to `additionalContext`, which continues the turn so Claude can act on it, rather than `decision: "block"`. `"enforce": true` switches to blocking, which is capped by `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8 consecutive blocks).
 
-Nudge suppression, so the thing stays ignorable-proof by being rare: skip if any `docs/adr/**` file is already dirty; skip if fewer than `min_files` watched files changed; skip if the same changed-file fingerprint was nudged within `cooldown_seconds`. State in `.dlog/state/<worktree>/`, gitignored.
+Nudge suppression, so the thing stays ignorable-proof by being rare: skip if any `docs/adr/**` file is already dirty; skip if fewer than `min_files` watched files changed; skip if the same changed-file fingerprint was nudged within `cooldown_seconds`. State in `.adrlog/state/<worktree>/`, gitignored.
 
 ### 8.1 Nudge accounting
 
 A non-blocking nudge that the agent answers with "no design decision here" every time, forever, leaves every other metric green while the tool silently stops working. So the nudge is instrumented:
 
-- Every nudge issued appends an event to `.dlog/state/<worktree>/nudges.jsonl` with the fingerprint and timestamp.
-- A nudge counts as *answered* if, within the same session, either an ADR is created or the reply contains an explicit no-decision statement (detected by the next `Stop` hook seeing an ADR file, or by `dlog ack --none`, which the skill instructs the agent to run when declining).
-- `dlog drift` reports the rolling 30-day response rate. Below 0.5 is a finding: either the `watch` list is too broad and the nudges are genuinely spurious, or the log has become wallpaper. Both demand a human look at the config, not more automation.
+- Every nudge issued appends an event to `.adrlog/state/<worktree>/nudges.jsonl` with the fingerprint and timestamp.
+- A nudge counts as *answered* if, within the same session, either an ADR is created or the reply contains an explicit no-decision statement (detected by the next `Stop` hook seeing an ADR file, or by `adrlog ack --none`, which the skill instructs the agent to run when declining).
+- `adrlog drift` reports the rolling 30-day response rate. Below 0.5 is a finding: either the `watch` list is too broad and the nudges are genuinely spurious, or the log has become wallpaper. Both demand a human look at the config, not more automation.
 
 This is deliberately an instrument, not an enforcement. The number exists so the failure is visible, and the failure being visible is the gate for building anything past M2.
 
@@ -308,7 +308,7 @@ Two constraints worth recording, both verified:
 
 ## 9. Relevance retrieval
 
-`dlog ctx` answers: which of the accepted decisions should this agent read before touching this code?
+`adrlog ctx` answers: which of the accepted decisions should this agent read before touching this code?
 
 ```
 score(adr) = 3.0 * path_overlap
@@ -319,13 +319,13 @@ score(adr) = 3.0 * path_overlap
 
 - `path_overlap`: fraction of the input file set matching any `affects` glob. Primary signal, and the reason `affects` exists.
 - `bm25`: standard lexical scoring over title, tags, and the Decision paragraph. Whether to include the Context section is an open call: excluding it avoids dilution from long prose, but Context is where the domain vocabulary actually lives (idempotency, tombstone, backfill), so exclusion is a hypothesis to test during calibration, not an assertion.
-- `status_weight`: accepted 1.0, proposed 0.6, superseded 0.0. Superseded records are excluded from context but reachable via `dlog show`.
+- `status_weight`: accepted 1.0, proposed 0.6, superseded 0.0. Superseded records are excluded from context but reachable via `adrlog show`.
 
 Returns id, title, one-line decision, path, and score — and returns *fewer* than `ctx_limit` when scores fall off. Most tasks have zero to two genuinely relevant decisions, so padding to five with weak matches injects confident irrelevance, which is worse than injecting nothing. Cut where score drops below 40% of the top score or below an absolute floor, whichever prunes more.
 
 That shape is also why the calibration metric is **recall of labelled-relevant records**, not precision at 5. Precision at a fixed k is dominated by the padding the cutoff exists to remove; what actually hurts is the agent missing the one decision governing the file it is editing.
 
-Weights live in `.dlog/config.json`, not in the binary. The section 9 numbers are defaults. Thirty labelled pairs is a floor sufficient to reject a broken ranking, not to tune four parameters — treat calibration as "confirm the defaults are not embarrassing," and grow the labelled set from real misses over time.
+Weights live in `.adrlog/config.json`, not in the binary. The section 9 numbers are defaults. Thirty labelled pairs is a floor sufficient to reject a broken ranking, not to tune four parameters — treat calibration as "confirm the defaults are not embarrassing," and grow the labelled set from real misses over time.
 
 Called two ways: from `SessionStart` with the diff against the base branch, and on demand from a skill before implementation. Read-only, so it is safe from parallel subagents.
 
@@ -333,7 +333,7 @@ Called two ways: from `SessionStart` with the diff against the base branch, and 
 
 ## 10. Bootstrap audit
 
-`dlog audit` enumerates decision-shaped artifacts. The binary finds candidates; an agent writes the records. That split keeps the binary deterministic and puts the judgment where judgment belongs.
+`adrlog audit` enumerates decision-shaped artifacts. The binary finds candidates; an agent writes the records. That split keeps the binary deterministic and puts the judgment where judgment belongs.
 
 Scanned:
 
@@ -348,7 +348,7 @@ Scanned:
 | `.github/workflows/` | CI topology |
 | `Makefile` | build entry points |
 
-Output is JSON: candidate, evidence as `file:line`, and a suggested title. `dlog init` runs it once and hands the list to the `adr` skill for batch authoring.
+Output is JSON: candidate, evidence as `file:line`, and a suggested title. `adrlog init` runs it once and hands the list to the `adr` skill for batch authoring.
 
 Deliberately over-inclusive. Rejecting a candidate is cheap; a missed decision stays missed.
 
@@ -362,7 +362,7 @@ Deterministic, from git only. Three findings:
 - **orphaned**: `affects` globs matching zero files. Code was moved or deleted.
 - **unresolved**: `status: proposed` older than `proposed_stale_days`.
 
-Surfaced at `SessionStart` when due, at most once per day per repo, tracked in `.dlog/state/`. Findings are advisory and never block.
+Surfaced at `SessionStart` when due, at most once per day per repo, tracked in `.adrlog/state/`. Findings are advisory and never block.
 
 An ADR can carry `drift_ack: 2026-08-04` to silence a stale finding. Precisely: the churn count resets its baseline to the commit at the ack date, so the finding fires again only after a further `drift_commit_threshold` commits land in `affects` paths *after* the ack. Acking is "I looked, the record still holds as of here," not "never tell me again."
 
@@ -371,8 +371,8 @@ An ADR can carry `drift_ack: 2026-08-04` to silence a stale finding. Precisely: 
 ## 12. Repo layout
 
 ```
-tools/dlog/
-  cmd/dlog/main.go          subcommand dispatch
+tools/adrlog/
+  cmd/adrlog/main.go          subcommand dispatch
   internal/adr/             parse, write, lint, index
   internal/journal/         append, query
   internal/rank/            bm25, glob overlap, scoring
@@ -381,22 +381,22 @@ tools/dlog/
   internal/gitx/            common-dir resolution, diff, log
   internal/hook/            payload structs, one file per event
   testdata/                 fixture repos
-Makefile                    build to .claude/bin/dlog
+Makefile                    build to .claude/bin/adrlog
 .claude/
   settings.json             four hooks
   skills/adr/SKILL.md       when a decision earns a record, how to write one
   commands/adr.md           /adr
-  bin/dlog                  gitignored build output
+  bin/adrlog                  gitignored build output
 docs/adr/
   README.md                 generated
   <id>.md
-.dlog/
+.adrlog/
   config.json
   journal/<session>.jsonl
   state/                    gitignored
 ```
 
-Install is `cp -r` plus `make install`. Since this is a binary rather than a script, `make install` must run before the hooks work. When the binary is missing, the hook wrapper does not fail every turn, but it must not fail *silently* either — invisible tracking loss is the worst failure shape, because nothing looks broken while the journal quietly stops. The `SessionStart` hook entry is therefore a one-line shell check that emits a single "dlog binary missing, run make install; decision tracking is off" as `additionalContext` once per session, and all other hook entries exit 0 quietly.
+Install is `cp -r` plus `make install`. Since this is a binary rather than a script, `make install` must run before the hooks work. When the binary is missing, the hook wrapper does not fail every turn, but it must not fail *silently* either — invisible tracking loss is the worst failure shape, because nothing looks broken while the journal quietly stops. The `SessionStart` hook entry is therefore a one-line shell check that emits a single "adrlog binary missing, run make install; decision tracking is off" as `additionalContext` once per session, and all other hook entries exit 0 quietly.
 
 Single-platform (darwin/arm64) is fine for now. A teammate on linux means building on install, which is a Makefile change, not a design change.
 
@@ -414,7 +414,7 @@ Effort is not uniform across these, and pretending otherwise is how side project
 
 **M2. Journal and hooks**
 `hook` dispatch for all five events. Journal append with `seq`. `journal_refs` inference and the `affects` birth check (sections 5.4 and 6.3). Nudge logic with fingerprint, cooldown, and nudge accounting (section 8.1). `journal` query and `--export`. Missing-binary session warning. `settings.json` wiring.
-*Done when:* a session with three parallel subagents produces one journal file containing all three closing summaries; a rejected alternative is recoverable after the subagent contexts are gone; an ADR created at session end has `journal_refs` pointing at the turns that touched its `affects` paths; and `dlog drift` (stub) can report the nudge response rate.
+*Done when:* a session with three parallel subagents produces one journal file containing all three closing summaries; a rejected alternative is recoverable after the subagent contexts are gone; an ADR created at session end has `journal_refs` pointing at the turns that touched its `affects` paths; and `adrlog drift` (stub) can report the nudge response rate.
 
 v0.1 ships here and is complete on its own terms. Everything below is optional and individually gated.
 
@@ -428,14 +428,14 @@ v0.1 ships here and is complete on its own terms. Everything below is optional a
 
 **M4. Audit and drift**
 All scanners in section 10. Churn analysis with `drift_ack` baseline-reset semantics. `SessionStart` surfacing with daily cadence. Full `drift` report including nudge response rate.
-*Done when:* `dlog audit` on the target repo surfaces 15 or more real decisions, and `dlog drift` produces no more than 2 false stale findings against a hand-reviewed baseline.
+*Done when:* `adrlog audit` on the target repo surfaces 15 or more real decisions, and `adrlog drift` produces no more than 2 false stale findings against a hand-reviewed baseline.
 
 **M5. Ergonomics and packaging**
 `init` including the journal-commit prompt and `.gitignore` management, `prune`, `lint --fix`, skill and command files, pre-commit hook, CI workflow checking lint and index freshness, README.
 *Done when:* a fresh repo goes from `cp -r` to a working setup with seeded ADRs in under five minutes.
 
 **M6. Query surface (post-v1)**
-`dlog serve`: read-only local HTTP view of the graph, plus the same data over MCP so other agents and tools can query it without shelling out.
+`adrlog serve`: read-only local HTTP view of the graph, plus the same data over MCP so other agents and tools can query it without shelling out.
 
 Scope deliberately thin. The web view renders the DAG, filters by tag and status, and links to source files. No editing, no auth, bound to localhost. The MCP surface exposes `ctx`, `list`, `show`, and `journal` as read-only tools, which is the same contract the `--json` flags already provide, so the marginal work is transport rather than logic.
 
@@ -448,7 +448,7 @@ Not started until M1 through M5 are in daily use on the target repo. The `--json
 | Risk | Why it matters | Mitigation |
 |---|---|---|
 | Filler ADRs | The only real failure mode. An unreadable log is worse than none, and an agent optimising to clear a check will produce exactly this. | Behavioral, not mechanical (section 4): high bar in the skill, empty Alternatives is a warning to humans not a gate for agents, narrow `watch`, non-blocking default, periodic human read of the log |
-| Nudge becomes wallpaper | Agent declines every nudge forever while all metrics stay green | Instrumented: response rate in `dlog drift` (section 8.1); below 0.5 blocks the M3+ gate and demands config or skill changes |
+| Nudge becomes wallpaper | Agent declines every nudge forever while all metrics stay green | Instrumented: response rate in `adrlog drift` (section 8.1); below 0.5 blocks the M3+ gate and demands config or skill changes |
 | `affects` wrong at birth | Corrupts `journal_refs`, retrieval, and drift at once, with correlated errors | Birth check against the session's actual `changed_files` (section 5.4), plus rot checks in lint and drift |
 | Shared mutable state under parallelism | The founding pitch is parallelism; racy state would be self-refuting | Explicit posture per state item (section 5.2): per-worktree keying, idempotent index, dirty-target warning on back-links |
 | Journal growth | 5 sessions times many turns per day | Path not content for transcripts, 1200 byte summary cap, `prune` at 90 days, `state/` gitignored |
@@ -459,10 +459,10 @@ Not started until M1 through M5 are in daily use on the target repo. The `--json
 
 | # | Question | Decision |
 |---|---|---|
-| 1 | Commit the journal? | Per-repo choice. `dlog init` asks, config records `journal_committed`, `.gitignore` follows. `journal --export` covers sharing one session when journals are not committed. |
+| 1 | Commit the journal? | Per-repo choice. `adrlog init` asks, config records `journal_committed`, `.gitignore` follows. `journal --export` covers sharing one session when journals are not committed. |
 | 2 | Populate `journal_refs` by hand or infer? | Infer, per section 6.3. Glob overlap first, fall back to entries since the last ADR in the session. Advisory field, `--no-refs` opts out. |
 | 3 | Nudge on `Stop` or `PreCompact`? | Keep it on `Stop`. Add `PreCompact` as a journal-only hook so compacted-away reasoning is still bracketed. |
-| 4 | `dlog serve` over MCP, and a UI? | Yes, later. M6, post-v1, read-only, localhost, not started until the rest is in daily use. |
+| 4 | `adrlog serve` over MCP, and a UI? | Yes, later. M6, post-v1, read-only, localhost, not started until the rest is in daily use. |
 
 ## 16. Remaining unknowns
 
@@ -470,4 +470,4 @@ Not started until M1 through M5 are in daily use on the target repo. The `--json
 2. Whether BM25 should include the Context section. Test both during M3 calibration; domain vocabulary lives in Context, dilution lives there too.
 3. Journal volume in practice. Five sessions of real work per day is the first honest measurement of whether 90 day retention is generous or tight.
 4. Whether 0.5 is the right nudge response-rate threshold, and whether the 15 minute cooldown survives a week of use. Both are config, both start as guesses, both get revisited at the M3 gate with real numbers.
-5. Whether `dlog ack --none` actually gets run by the agent when declining a nudge, or whether the skill instruction is ignored under context pressure. If ignored, the response-rate denominator inflates and the metric reads worse than reality — which fails safe, but should be known.
+5. Whether `adrlog ack --none` actually gets run by the agent when declining a nudge, or whether the skill instruction is ignored under context pressure. If ignored, the response-rate denominator inflates and the metric reads worse than reality — which fails safe, but should be known.

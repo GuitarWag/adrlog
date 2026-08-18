@@ -10,7 +10,7 @@ import (
 // Marshal renders a brand-new record. Field order follows prd §6.1, and the list
 // shapes match its example: affects as a block sequence, links inline.
 //
-// This is only ever used for files dlog itself creates. Existing files are edited
+// This is only ever used for files adrlog itself creates. Existing files are edited
 // surgically (see SetList and SetScalar) so that a key this version does not know
 // about cannot be lost to a parse-and-reserialise round trip.
 func (r *Record) Marshal() []byte {

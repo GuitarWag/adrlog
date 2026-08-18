@@ -2,8 +2,11 @@
 .claude/bin/
 
 # Per-worktree nudge state. Never shared, never committed (prd §5.2, §8).
-.dlog/state/
+.adrlog/state/
 
-# Journals are a per-repo choice (prd §6.2). dlog's own repo does not commit them;
-# `dlog journal --export <session>` shares one when it is worth sharing.
-.dlog/journal/
+# Journals are a per-repo choice (prd §6.2). adrlog's own repo does not commit them;
+# `adrlog journal --export <session>` shares one when it is worth sharing.
+.adrlog/journal/
+
+# Codex agent definitions, machine-local.
+.codex/
