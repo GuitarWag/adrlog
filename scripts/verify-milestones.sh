@@ -18,12 +18,12 @@ pass() { printf '  ok   %s\n' "$1"; }
 fail() { printf '  FAIL %s\n' "$1"; FAILED=1; }
 FAILED=0
 
-mkdir -p "$MAIN"/{internal/ledger,cmd/adrlog}
+mkdir -p "$MAIN"/{internal/pricing,cmd/adrlog}
 cd "$MAIN"
 git init -q -b main
 git config user.email t@example.com
 git config user.name test
-echo package ledger > internal/ledger/store.go
+echo package pricing > internal/pricing/store.go
 echo package main > cmd/adrlog/main.go
 git add -A && git commit -qm init
 
@@ -37,7 +37,7 @@ for i in 1 2 3 4 5; do
 done
 for i in 1 2 3 4 5; do
   ( cd "$SCRATCH/w$i" && "$DLOG" new "Decision from worktree $i" \
-      --status accepted --affects "internal/ledger/**" --tags concurrent >/dev/null 2>&1 ) &
+      --status accepted --affects "internal/pricing/**" --tags concurrent >/dev/null 2>&1 ) &
 done
 wait
 
@@ -64,9 +64,9 @@ AFTER=$(find "$MAIN/docs/adr" -name '*.md' ! -name README.md | wc -l | tr -d ' '
 [ "$AFTER" = 5 ] && pass "records survive worktree removal" || fail "lost a record with the worktree"
 
 # Supersede: reciprocity in both directions, and the target's status flipped.
-OLD=$("$DLOG" list --json | grep '"id"' | head -1 | sed 's/.*: "//;s/".*//')
+OLD=$("$DLOG" list --json | grep -m1 '"id"' | sed 's/.*: "//;s/".*//')
 "$DLOG" new "Replaces the first decision" --status accepted --supersedes "$OLD" \
-    --affects "internal/ledger/**" >/dev/null 2>&1
+    --affects "internal/pricing/**" >/dev/null 2>&1
 if grep -q 'status: superseded' "docs/adr/$OLD.md" && grep -q 'superseded_by: \[' "docs/adr/$OLD.md"; then
   pass "supersede back-link written and status flipped"
 else
@@ -112,7 +112,7 @@ hook() { echo "$2" | "$DLOG" hook "$1"; }
 
 # Three subagents finishing at once, in one session, all appending to one file.
 for a in schema-reviewer qa-adversary perf-checker; do
-  ( hook subagent-stop "{\"session_id\":\"$SESSION\",\"cwd\":\"$MAIN\",\"agent_type\":\"$a\",\"transcript_path\":\"/tmp/$a.jsonl\",\"last_assistant_message\":\"$a rejected the hard-delete approach; it breaks the immutable ledger requirement.\"}" >/dev/null 2>&1 ) &
+  ( hook subagent-stop "{\"session_id\":\"$SESSION\",\"cwd\":\"$MAIN\",\"agent_type\":\"$a\",\"transcript_path\":\"/tmp/$a.jsonl\",\"last_assistant_message\":\"$a rejected the hard-delete approach; it breaks the append-only event log requirement.\"}" >/dev/null 2>&1 ) &
 done
 wait
 
@@ -129,14 +129,14 @@ USEQ=$("$DLOG" journal --session "$SESSION" --json | grep '"seq"' | sort -u | wc
 [ "$SEQS" = "$USEQ" ] && pass "seq unique under concurrent append" || fail "duplicate seq: $SEQS entries, $USEQ distinct"
 
 # G2: the reasoning survives the contexts being discarded.
-"$DLOG" journal --grep "hard-delete" --json | grep -q immutable \
+"$DLOG" journal --grep "hard-delete" --json | grep -q append-only \
   && pass "rejected alternative recoverable after contexts are gone" \
   || fail "rejected alternative not recoverable"
 
 # journal_refs must point at the turns that touched the affects paths (prd §6.3).
 hook stop "{\"session_id\":\"$SESSION\",\"cwd\":\"$MAIN\",\"last_assistant_message\":\"wrapping up\"}" >/dev/null 2>&1 || true
 REFS=$(cd "$MAIN" && CLAUDE_CODE_SESSION_ID="$SESSION" "$DLOG" new "Tombstone column over hard delete" \
-        --status accepted --affects "internal/ledger/**" --json 2>/dev/null | grep -A5 journal_refs)
+        --status accepted --affects "internal/pricing/**" --json 2>/dev/null | grep -A5 journal_refs)
 echo "$REFS" | grep -q "$SESSION#" && pass "journal_refs inferred from the session's turns" \
                                    || fail "journal_refs empty: $REFS"
 
@@ -150,7 +150,7 @@ OUT=$(hook stop "{\"session_id\":\"quiet-$$\",\"cwd\":\"$MAIN\"}" 2>/dev/null ||
 git add -A && git commit -qm records
 
 # The nudge: enough watched files change, nothing recorded, so it asks once.
-echo "// change" >> internal/ledger/store.go
+echo "// change" >> internal/pricing/store.go
 echo "// change" >> cmd/adrlog/main.go
 NUDGE=$(hook stop "{\"session_id\":\"nudge-$$\",\"cwd\":\"$MAIN\",\"last_assistant_message\":\"done\"}" 2>/dev/null || true)
 echo "$NUDGE" | grep -q additionalContext && pass "nudge fires on watched changes" || fail "no nudge: $NUDGE"
@@ -218,7 +218,7 @@ PY
 CLAUDE_CODE_SESSION_ID="nudge-$$" "$DLOG" ack --none >/dev/null
 "$DLOG" drift --json | grep -q '"rate"' && pass "drift reports the nudge response rate" \
                                         || fail "drift did not report a rate"
-RATE=$("$DLOG" drift --json | grep '"rate"' | head -1)
+RATE=$("$DLOG" drift --json | grep -m1 '"rate"')
 pass "response rate: $(echo "$RATE" | tr -d ' ,')"
 
 echo
@@ -229,7 +229,7 @@ echo "regressions — defects found by adversarial review"
 # open nudge and pin the M3 gate metric near 1.0 (prd §8.1 says "within the same
 # session").
 cd "$SCRATCH/w2"
-echo "// a" >> internal/ledger/store.go
+echo "// a" >> internal/pricing/store.go
 echo "// b" >> cmd/adrlog/main.go
 git -C "$SCRATCH/w2" add -A >/dev/null 2>&1 || true
 hook stop "{\"session_id\":\"sessB\",\"cwd\":\"$SCRATCH/w2\",\"last_assistant_message\":\"x\"}" >/dev/null 2>&1 || true
@@ -238,7 +238,7 @@ if [ -s "$LEDGER" ]; then pass "nudge recorded in worktree w2"; else fail "no nu
 
 # A different session, in a different worktree, writes an unrelated record.
 ( cd "$SCRATCH/w1" && CLAUDE_CODE_SESSION_ID=sessA "$DLOG" new "Unrelated decision from another session" \
-    --status accepted --affects "internal/ledger/**" >/dev/null 2>&1 )
+    --status accepted --affects "internal/pricing/**" >/dev/null 2>&1 )
 sleep 1
 hook stop "{\"session_id\":\"sessB\",\"cwd\":\"$SCRATCH/w2\",\"last_assistant_message\":\"y\"}" >/dev/null 2>&1 || true
 if grep -q '"kind":"ack"' "$LEDGER"; then
@@ -255,7 +255,7 @@ grep -q '"kind":"ack"' "$LEDGER" && fail "touching records answered the nudge" \
 
 # ...but this session writing one does.
 ( cd "$SCRATCH/w2" && CLAUDE_CODE_SESSION_ID=sessB "$DLOG" new "Decision that answers the nudge" \
-    --status accepted --affects "internal/ledger/**" >/dev/null 2>&1 )
+    --status accepted --affects "internal/pricing/**" >/dev/null 2>&1 )
 grep -q '"kind":"ack"' "$LEDGER" && pass "this session's record answers its own nudge" \
                                  || fail "sessB's own record did not answer its nudge"
 cd "$MAIN"
@@ -279,7 +279,7 @@ rm docs/adr/hidden.md
 
 # S5: a bogus target must not leave an earlier target already mutated, superseded,
 # and pointing at a record that will never exist.
-KEEP=$("$DLOG" list --status accepted --json | grep '"id"' | head -1 | sed 's/.*: "//;s/".*//')
+KEEP=$("$DLOG" list --status accepted --json | grep -m1 '"id"' | sed 's/.*: "//;s/".*//')
 cp "docs/adr/$KEEP.md" "$SCRATCH/keep-before"
 "$DLOG" new "Should not be created" --supersedes "$KEEP" --supersedes does-not-exist >/dev/null 2>&1 \
   && fail "new succeeded with a bogus --supersedes" || true
