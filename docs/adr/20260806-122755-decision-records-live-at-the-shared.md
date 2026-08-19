@@ -17,8 +17,8 @@ tags: [worktrees, storage]
 
 ## Context
 
-prd §5.2 lists `docs/adr/<id>.md` in the shared-state table, which puts records at
-the shared repository root alongside `.adrlog/`. The M1 done-condition in §13 says
+The plan listed `docs/adr/<id>.md` in its shared-state table, which puts records
+at the shared repository root alongside `.adrlog/`. Its own done-condition says
 five concurrent worktrees "each create an ADR and merge cleanly with no conflict",
 and merging only means something if each record is committed on its own branch.
 The two readings cannot both hold, and the choice changes where every record is
@@ -30,7 +30,8 @@ Records resolve against the shared root, the same as `.adrlog/`:
 `dirname(git rev-parse --git-common-dir)`. A record written from any of five
 worktrees lands in one directory.
 
-The deciding argument is problem 2 in §2: session B contradicting an accepted
+The deciding argument is the second problem the tool exists for: session B
+contradicting an accepted
 decision from session A, because nothing put A's conclusion in front of it. If
 records live on branches, B literally cannot see A's record until it merges, and
 the founding problem survives the tool built to solve it. Retrieval in M3 keys off
@@ -42,7 +43,7 @@ Per-worktree records, committed on the branch that produced them. This is the
 better fit for review, because the record arrives in the pull request next to the
 code it explains, and it is what "merge cleanly" implies. Rejected because pre-merge
 invisibility defeats the point, and because the collision the timestamp id exists
-to prevent (§5.1, G1) only arises when sessions share a directory, which is
+to prevent only arises when sessions share a directory, which is
 evidence the shared directory was the intent.
 
 A copy in both places was not seriously considered: two records for one decision

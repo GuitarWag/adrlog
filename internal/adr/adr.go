@@ -2,7 +2,7 @@
 //
 // The frontmatter parser is hand-rolled against a deliberately small YAML subset
 // — scalars, inline arrays, block sequences — so the binary carries no YAML
-// dependency and the format stays trivial to reimplement (prd §6.1). The hazard
+// dependency and the format stays trivial to reimplement. The hazard
 // that creates is the whole reason Parse reports line numbers: an editor
 // reflowing frontmatter into legal-but-unsupported YAML must produce a loud lint
 // failure, never a record that quietly vanishes from every index and query.
@@ -24,10 +24,10 @@ const Dir = "docs/adr"
 // DateFormat is the frontmatter date layout.
 const DateFormat = "2006-01-02"
 
-// Statuses are the legal values of the status field (prd §6.1).
+// Statuses are the legal values of the status field.
 var Statuses = []string{"proposed", "accepted", "rejected", "superseded", "reverted"}
 
-// Sections are the fixed body headings checked by lint (prd §6.1).
+// Sections are the fixed body headings checked by lint.
 var Sections = []string{"Context", "Decision", "Alternatives considered", "Consequences"}
 
 // Record is one decision record.
@@ -203,7 +203,7 @@ func scalar(s, path string, num int) (string, error) {
 		return v, nil
 	}
 	// Strip a trailing comment. A value that needs a literal " #" must be quoted;
-	// the prd's own examples carry inline comments, so supporting them wins.
+	// real records carry inline comments on the status line, so supporting them wins.
 	if i := strings.Index(s, " #"); i >= 0 {
 		s = s[:i]
 	}
@@ -310,7 +310,7 @@ func (r *Record) HasSection(name string) bool {
 }
 
 // Broken is a record on disk that could not be read. Lint reports these as
-// failures; nothing else is allowed to skip them quietly (prd §6.1).
+// failures; nothing else is allowed to skip them quietly.
 type Broken struct {
 	Path string
 	Err  error
@@ -352,7 +352,7 @@ func LoadAll(root string) ([]*Record, []Broken, error) {
 	return recs, broken, nil
 }
 
-// Slug is the first six words of the title, lowercased (prd §5.1).
+// Slug is the first six words of the title, lowercased.
 func Slug(title string) string {
 	words := slugSplit.Split(strings.ToLower(title), -1)
 	var kept []string
@@ -374,7 +374,7 @@ func Slug(title string) string {
 // idTimeFormat is the timestamp half of an id.
 const idTimeFormat = "20060102-150405"
 
-// NewID builds YYYYMMDD-HHMMSS-slug (prd §5.1). Sortable, readable, and needing
+// NewID builds YYYYMMDD-HHMMSS-slug. Sortable, readable, and needing
 // no coordination between worktrees — which is the entire point, since a
 // sequential counter is what collides across five parallel sessions.
 func NewID(t time.Time, title string) string {

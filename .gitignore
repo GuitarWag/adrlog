@@ -1,10 +1,10 @@
-# Build output (prd §12).
+# Build output.
 .claude/bin/
 
-# Per-worktree nudge state. Never shared, never committed (prd §5.2, §8).
+# Per-worktree nudge state. Never shared, never committed.
 .adrlog/state/
 
-# Journals are a per-repo choice (prd §6.2). adrlog's own repo does not commit them;
+# Journals are a per-repo choice. adrlog's own repo does not commit them;
 # `adrlog journal --export <session>` shares one when it is worth sharing.
 .adrlog/journal/
 

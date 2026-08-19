@@ -1,8 +1,8 @@
-// Package journal records one line per agent turn (prd §6.2).
+// Package journal records one line per agent turn.
 //
 // This is the differentiator: a subagent finishes, returns a summary, and its
 // context is discarded — whatever it considered and rejected is gone unless
-// something wrote it down first (prd §2, §3).
+// something wrote it down first.
 package journal
 
 import (
@@ -26,7 +26,7 @@ import (
 const Dir = ".adrlog/journal"
 
 // SummaryLimit caps the stored summary. Entries stay small because the full
-// reasoning is reachable through the transcript path (prd §6.2).
+// reasoning is reachable through the transcript path.
 const SummaryLimit = 1200
 
 type Entry struct {
@@ -51,7 +51,7 @@ func (e Entry) Ref() string { return e.Session + "#" + strconv.Itoa(e.Seq) }
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
 // FilePath is the journal for one session, under the shared root so five
-// worktrees write to one place (prd §5.2).
+// worktrees write to one place.
 func FilePath(root, session string) string {
 	if session == "" {
 		session = "unknown"
@@ -98,7 +98,7 @@ func Append(root string, e Entry) (Entry, error) {
 	}
 	// No fsync. The write is one small append under a lock, so another process
 	// sees it immediately; only a machine crash could lose it, and the hook budget
-	// is 50ms at p99 (prd G7) which an fsync per turn eats into for a journal that
+	// is 50ms at p99 which an fsync per turn eats into for a journal that
 	// is advisory by design.
 	_, err = f.Write(append(line, '\n'))
 	return e, err
@@ -112,13 +112,13 @@ const tailWindow = 256 * 1024
 // highWaterSeq returns the largest seq already in the file.
 //
 // Only the tail is read. Scanning the whole file made every append O(entries),
-// which at ten thousand lines put the Stop hook on the 50ms budget line (prd G7)
+// which at ten thousand lines put the Stop hook on the 50ms budget line
 // — and it did it while holding the exclusive lock, so it slowed every other
 // subagent appending at the same time.
 //
 // A torn final line — a machine that died mid-append — is counted rather than
 // skipped. Skipping it would hand its seq to the next entry, and journal_refs
-// points at seq to name one specific turn (prd §6.2).
+// points at seq to name one specific turn.
 func highWaterSeq(f *os.File) (int, error) {
 	size, err := f.Seek(0, io.SeekEnd)
 	if err != nil {
@@ -186,7 +186,7 @@ func Truncate(s string, max int) string {
 }
 
 // Broken is a journal line that would not parse. Reported rather than skipped,
-// for the same reason an unreadable ADR is (prd §6.1).
+// for the same reason an unreadable ADR is.
 type Broken struct {
 	Path string
 	Line int
@@ -292,7 +292,7 @@ func Filter(entries []Entry, q Query) []Entry {
 }
 
 // Export renders one session as a readable markdown trace, so a session can be
-// pasted into a PR comment without committing every journal (prd §6.2).
+// pasted into a PR comment without committing every journal.
 func Export(session string, entries []Entry) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Session %s\n\n", session)
@@ -325,7 +325,7 @@ func Export(session string, entries []Entry) string {
 }
 
 // RefResolver reports whether a session#seq pointer resolves to a real entry.
-// Lint asks only this, never whether the pointer is apt (prd §6.3).
+// Lint asks only this, never whether the pointer is apt.
 func RefResolver(entries []Entry) func(string) bool {
 	known := map[string]bool{}
 	for _, e := range entries {
@@ -335,7 +335,7 @@ func RefResolver(entries []Entry) func(string) bool {
 }
 
 // SessionExists reports whether a session's journal file is on disk. Lint uses it
-// to tell an unresolvable pointer from an absent journal (prd §6.2, §14).
+// to tell an unresolvable pointer from an absent journal.
 func SessionExists(root, session string) bool {
 	info, err := os.Stat(FilePath(root, session))
 	return err == nil && !info.IsDir()
@@ -345,7 +345,7 @@ func SessionExists(root, session string) bool {
 //
 // Loading every journal to check a handful of pointers meant one long-running
 // session's file paid for all of them: with a five-thousand-line journal present
-// it put the PostToolUse hook over its 50ms budget (prd G7), while the refs being
+// it put the PostToolUse hook over its 50ms budget, while the refs being
 // checked pointed at two entirely different sessions. Returns nil when there is
 // nothing to resolve, which disables the check rather than passing it.
 func RefResolverFor(root string, refs []string) func(string) bool {

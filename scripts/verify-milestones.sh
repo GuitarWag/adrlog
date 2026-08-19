@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks the M1 and M2 done-conditions from prd §13.
+# Checks the M1 and M2 done-conditions from docs/future-work.md.
 #
 # These are cross-process and cross-worktree by nature — five sessions racing for
 # an id, three subagent hooks appending to one file — so they cannot live in
@@ -31,7 +31,7 @@ echo
 echo "M1 — core ADR handling"
 
 # Five concurrent worktrees each create a record. A sequential counter is what
-# collides here; timestamp ids need no coordination (prd §5.1, G1).
+# collides here; timestamp ids need no coordination (, G1).
 for i in 1 2 3 4 5; do
   git worktree add -q -b "feat/w$i" "$SCRATCH/w$i" main
 done
@@ -46,7 +46,7 @@ COUNT=$(find "$MAIN/docs/adr" -name '*.md' ! -name README.md | wc -l | tr -d ' '
                  || fail "expected 5 records at the shared root, found $COUNT"
 
 # The shared root is the point: a worktree writing to its own toplevel would
-# scatter these and lose them when the worktree is removed (prd §5.2).
+# scatter these and lose them when the worktree is removed.
 STRAY=$(find "$SCRATCH"/w[1-5] -name '*.md' -path '*docs/adr*' 2>/dev/null | wc -l | tr -d ' ')
 [ "$STRAY" = 0 ] && pass "no records scattered into individual worktrees" \
                  || fail "$STRAY record(s) written to a worktree instead of the shared root"
@@ -87,13 +87,13 @@ PY
 cp "$SCRATCH/backlink-intact" "docs/adr/$OLD.md"
 
 # The index is generated from the full set, so concurrent regeneration is safe
-# only if it is byte-identical regardless of who runs it last (prd §5.2).
+# only if it is byte-identical regardless of who runs it last.
 "$DLOG" index >/dev/null; cp docs/adr/README.md "$SCRATCH/idx1"
 "$DLOG" index >/dev/null; cp docs/adr/README.md "$SCRATCH/idx2"
 cmp -s "$SCRATCH/idx1" "$SCRATCH/idx2" && pass "index regeneration is deterministic" \
                                        || fail "index differs between runs"
 
-# An unreadable record is a defect, never an absence (prd §6.1). Capture the
+# An unreadable record is a defect, never an absence. Capture the
 # output rather than piping: lint exits 1 here by design, and pipefail would
 # report that as the check itself failing.
 printf -- '---\nid: broken\ntitle: X\nmeta: {flow: mapping}\n---\n' > docs/adr/broken.md
@@ -133,7 +133,7 @@ USEQ=$("$DLOG" journal --session "$SESSION" --json | grep '"seq"' | sort -u | wc
   && pass "rejected alternative recoverable after contexts are gone" \
   || fail "rejected alternative not recoverable"
 
-# journal_refs must point at the turns that touched the affects paths (prd §6.3).
+# journal_refs must point at the turns that touched the affects paths.
 hook stop "{\"session_id\":\"$SESSION\",\"cwd\":\"$MAIN\",\"last_assistant_message\":\"wrapping up\"}" >/dev/null 2>&1 || true
 REFS=$(cd "$MAIN" && CLAUDE_CODE_SESSION_ID="$SESSION" "$DLOG" new "Tombstone column over hard delete" \
         --status accepted --affects "internal/pricing/**" --json 2>/dev/null | grep -A5 journal_refs)
@@ -146,7 +146,7 @@ OUT=$(hook stop "{\"session_id\":\"quiet-$$\",\"cwd\":\"$MAIN\"}" 2>/dev/null ||
 
 # Commit what exists first. An uncommitted record under docs/adr/ suppresses the
 # nudge by design — the session is already writing one, so asking is noise
-# (prd §8) — and that rule would otherwise mask the whole test.
+# — and that rule would otherwise mask the whole test.
 git add -A && git commit -qm records
 
 # The nudge: enough watched files change, nothing recorded, so it asks once.
@@ -155,7 +155,7 @@ echo "// change" >> cmd/adrlog/main.go
 NUDGE=$(hook stop "{\"session_id\":\"nudge-$$\",\"cwd\":\"$MAIN\",\"last_assistant_message\":\"done\"}" 2>/dev/null || true)
 echo "$NUDGE" | grep -q additionalContext && pass "nudge fires on watched changes" || fail "no nudge: $NUDGE"
 
-# ...and stays quiet inside the cooldown for the same file set (prd §8).
+# ...and stays quiet inside the cooldown for the same file set.
 AGAIN=$(hook stop "{\"session_id\":\"nudge-$$\",\"cwd\":\"$MAIN\",\"last_assistant_message\":\"done\"}" 2>/dev/null || true)
 [ -z "$AGAIN" ] && pass "cooldown suppresses a repeat nudge" || fail "nudged twice for one file set"
 
@@ -226,8 +226,8 @@ echo "regressions — defects found by adversarial review"
 
 # S1: an ADR from one session must not answer another session's nudge. Records are
 # shared across worktrees, so mtime-matching let any record anywhere close every
-# open nudge and pin the M3 gate metric near 1.0 (prd §8.1 says "within the same
-# session").
+# open nudge and pin the M3 gate metric near 1.0. An ack must come from the same
+# session that was nudged.
 cd "$SCRATCH/w2"
 echo "// a" >> internal/pricing/store.go
 echo "// b" >> cmd/adrlog/main.go
@@ -260,7 +260,7 @@ grep -q '"kind":"ack"' "$LEDGER" && pass "this session's record answers its own 
                                  || fail "sessB's own record did not answer its nudge"
 cd "$MAIN"
 
-# S2: an index missing records nobody was told about is the silent skip §6.1 rules
+# S2: an index missing records nobody was told about is the silent skip rules
 # out. Its output is stable across runs, so a CI freshness check would pass too.
 cp docs/adr/README.md "$SCRATCH/idx-before"
 printf -- '---\nid: hidden\ntitle: Secret\nmeta: {flow: mapping}\n---\n' > docs/adr/hidden.md

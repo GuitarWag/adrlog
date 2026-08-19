@@ -9,7 +9,7 @@ import (
 func at(t time.Time, d time.Duration) string { return t.Add(d).UTC().Format(time.RFC3339) }
 
 // The response rate is the instrument that makes "the nudge became wallpaper"
-// visible (prd §8.1), and it gates every milestone past M2 (prd §13). A rate that
+// visible, and it gates every milestone past M2 (docs/future-work.md). A rate that
 // over-counts would hide exactly the failure it exists to expose.
 func TestResponseRate(t *testing.T) {
 	now := time.Now().UTC()
@@ -103,7 +103,7 @@ func TestOutstanding(t *testing.T) {
 
 // Two Stop hooks finishing together in one worktree both read an empty cooldown
 // and both nudged for the same file set: two prompts for one change, and an
-// inflated denominator under the rate that gates M3 (prd §8.1). The check and the
+// inflated denominator under the rate that gates M3. The check and the
 // write have to be one locked operation.
 func TestTryNudgeIsAtomicUnderConcurrency(t *testing.T) {
 	root := t.TempDir()
@@ -172,7 +172,7 @@ func TestFingerprintIsOrderIndependent(t *testing.T) {
 }
 
 // Two worktrees must not share nudge state: their changed-file sets differ, so a
-// suppression in one would silence a genuine nudge in the other (prd §5.2).
+// suppression in one would silence a genuine nudge in the other.
 func TestLedgerIsKeyedPerWorktree(t *testing.T) {
 	root := t.TempDir()
 	if err := Append(root, "wt-a", Event{Kind: KindNudge, Session: "s", Fingerprint: "f"}); err != nil {

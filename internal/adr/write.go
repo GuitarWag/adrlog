@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Marshal renders a brand-new record. Field order follows prd §6.1, and the list
+// Marshal renders a brand-new record. Field order follows , and the list
 // shapes match its example: affects as a block sequence, links inline.
 //
 // This is only ever used for files adrlog itself creates. Existing files are edited
@@ -66,7 +66,7 @@ func (r *Record) Marshal() []byte {
 
 // Template is the empty body. The headings are fixed and lint checks they exist;
 // what goes under them is the author's problem, and an honestly empty
-// Alternatives section is better than a fabricated one (prd §4).
+// Alternatives section is better than a fabricated one.
 func Template() string {
 	var b strings.Builder
 	for i, s := range Sections {

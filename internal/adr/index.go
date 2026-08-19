@@ -15,7 +15,7 @@ var IndexPath = filepath.Join(Dir, "README.md")
 //
 // Deterministic in the record set alone, which is what makes concurrent writes
 // safe: every session regenerates the same bytes, so last-write-wins is correct
-// rather than merely tolerated (prd §5.2).
+// rather than merely tolerated.
 func Index(recs []*Record) []byte {
 	sorted := make([]*Record, len(recs))
 	copy(sorted, recs)
@@ -37,7 +37,7 @@ func Index(recs []*Record) []byte {
 	}
 
 	// The graph is a DAG, not a tree: parallel sessions converge and multiple
-	// parents are normal (prd §5.3).
+	// parents are normal.
 	node := map[string]string{}
 	for i, r := range sorted {
 		node[r.ID] = fmt.Sprintf("n%d", i)

@@ -16,12 +16,14 @@ tags: [nudge, metrics]
 
 ## Context
 
-The prd states the nudge response-rate threshold twice, in incompatible forms. G5
-and the §13 gate require a rate "above 0.5". §8.1 words the finding as "Below 0.5
-is a finding". A rate of exactly 0.5 therefore fails the gate while reporting
-nothing, which is the one reading that makes the instrument useless: the number
-exists so the failure is visible (§8.1), and a silent gate failure is the failure
-it was built to catch.
+The plan stated the response-rate threshold twice, in incompatible forms. The
+goal and the gate both want a rate "above 0.5". The passage describing the
+instrument worded the finding as "below 0.5 is a finding".
+
+A rate of exactly 0.5 therefore fails the gate while reporting nothing. That is
+the one reading that makes the instrument useless. The number exists so the
+failure is visible, and a silent gate failure is the failure it was built to
+catch.
 
 ## Decision
 
@@ -32,16 +34,16 @@ what the M3 gate means and that should not be a per-repo setting.
 
 ## Alternatives considered
 
-Follow §8.1 literally with a strict `<`. Rejected: it creates a value that fails
-the gate silently.
+Follow the instrument's wording literally with a strict `<`. Rejected, because it
+creates a value that fails the gate silently.
 
-Relax the gate to "0.5 or above" instead, making §8.1 correct. Rejected because
-the gate wording appears twice (G5 and §13) against §8.1's once, and because the
-threshold is an admitted guess (§16.4). When in doubt, take the reading that
-reports.
+Relax the gate to "0.5 or above" instead, which would make the other wording
+correct. Rejected because the gate wording appeared twice against the other's
+once, and because the threshold is an admitted guess. When in doubt, take the
+reading that reports.
 
 ## Consequences
 
 At exactly 0.5 the tool reports a finding and blocks the M3 gate. Whether 0.5 is
-the right number at all is still open (§16.4) and gets revisited with real usage
+the right number at all is still open and gets revisited with real usage
 data, at which point this record is the thing to revise.

@@ -17,7 +17,7 @@ tags: [journal, performance]
 ## Context
 
 `journal.Append` originally called `f.Sync()` on every write. Measured on this
-machine, the Stop hook ran at 63ms mean against a 50ms p99 budget (prd G7). The
+machine, the Stop hook ran at 63ms mean against a 50ms p99 budget. The
 fsync was part of that, alongside five `git` subprocesses at roughly 9ms each.
 
 ## Decision
@@ -36,7 +36,7 @@ script builds.
 Keep the fsync and buy the budget back elsewhere. Rejected: the git subprocess
 savings were needed regardless, and spending any of the remaining headroom on
 durability for an advisory record is the wrong trade. The journal is explicitly
-ephemeral by nature (§1) and pruned at 90 days (§14).
+ephemeral by nature and pruned at 90 days.
 
 Batching or deferring writes to a background process. Rejected as more machinery
 than the problem needs, and it would put entries at risk of never being written at

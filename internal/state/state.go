@@ -1,9 +1,9 @@
-// Package state keeps the per-worktree nudge ledger (prd §8.1).
+// Package state keeps the per-worktree nudge ledger.
 //
 // The ledger exists so one specific failure is visible: a non-blocking nudge that
 // the agent declines every time, forever, leaves every other metric green while
 // the tool quietly stops working. This is an instrument, not an enforcement — the
-// number's job is to make the failure showable, and it gates M3+ (prd §13).
+// number's job is to make the failure showable, and it gates M3+ (docs/future-work.md).
 package state
 
 import (
@@ -33,17 +33,18 @@ const (
 	AckNone = "none" // the agent explicitly declined, via `adrlog ack --none`
 )
 
-// ResponseWindow is the rolling window for the response rate (prd §8.1).
+// ResponseWindow is the rolling window for the response rate.
 const ResponseWindow = 30 * 24 * time.Hour
 
 // ResponseFloor is the rate the response rate has to clear. A guess, and recorded
-// as one (prd §16.4) — it lives here rather than in config because changing it
+// as one — it lives here rather than in config because changing it
 // changes what the M3 gate means.
 //
-// The gate is "above 0.5" (prd G5, §13) while §8.1 words the finding as "below
-// 0.5", which leaves exactly 0.5 failing the gate without reporting anything. The
-// finding follows the gate: it fires whenever the rate is not above the floor, so
-// the instrument and the thing it gates cannot disagree.
+// The gate wants the rate "above 0.5", while the finding was first worded as
+// "below 0.5". That leaves exactly 0.5 failing the gate while reporting nothing,
+// which is the one reading that makes the instrument useless. The finding follows
+// the gate: it fires whenever the rate is not above the floor, so the instrument
+// and the thing it gates cannot disagree.
 const ResponseFloor = 0.5
 
 type Event struct {
@@ -55,7 +56,7 @@ type Event struct {
 	Files       int    `json:"files,omitempty"`
 }
 
-// Dir is the per-worktree state directory (prd §5.2). Keyed by worktree because
+// Dir is the per-worktree state directory. Keyed by worktree because
 // a nudge fingerprint from worktree A must not suppress a nudge in worktree B:
 // their changed-file sets differ, so sharing this would be wrong, not just racy.
 func Dir(root, worktree string) string {
@@ -96,7 +97,7 @@ func Append(root, worktree string, e Event) error {
 // The check and the write are one locked operation. Split across a read and a
 // later Append, two Stop hooks finishing together in one worktree both saw an
 // empty cooldown and both nudged for the same file set — two prompts for one
-// change, and an inflated denominator under the rate that gates M3 (prd §8.1).
+// change, and an inflated denominator under the rate that gates M3.
 func TryNudge(root, worktree string, e Event, cooldown time.Duration) (bool, error) {
 	f, err := openLedger(root, worktree)
 	if err != nil {
@@ -230,7 +231,7 @@ func Outstanding(events []Event, session string) (Event, bool) {
 	return last, have
 }
 
-// Rate is the rolling response rate (prd §8.1). A nudge counts as answered when
+// Rate is the rolling response rate. A nudge counts as answered when
 // an ack lands in the same session at or after it.
 type Rate struct {
 	Nudges   int     `json:"nudges"`

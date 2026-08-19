@@ -4,7 +4,7 @@
 //
 // Two callers need it, and both need it for the same reason: a read-then-append
 // that must not interleave. The journal assigns seq by reading the current high
-// water mark, and journal_refs points at seq to name one specific turn (prd §6.2),
+// water mark, and journal_refs points at seq to name one specific turn,
 // so two subagents finishing together must not be handed the same number. The
 // nudge ledger checks the cooldown and then writes, and two Stop hooks racing
 // there produced two prompts for one change.

@@ -22,7 +22,7 @@ tags: [platform, build]
 appending. Three subagents finishing at once in one session hit that path
 together, so the read and the write are held under an exclusive `flock`. Without
 it every concurrent caller receives the same number, and `journal_refs` points at
-`seq` to name one specific turn (§6.2).
+`seq` to name one specific turn.
 
 `syscall.Flock` does not exist on Windows. Before the first release, a Windows
 build failed with `undefined: syscall.Flock`, which reads like an oversight

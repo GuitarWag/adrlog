@@ -110,6 +110,23 @@ Set the watch list before you start. The default is `internal/** cmd/** migratio
 
 Every field is optional. Delete the file and the defaults apply.
 
+| Field | Default | Does |
+|---|---|---|
+| `watch` | `internal/** cmd/** migrations/** api/** **/*.tf` | Paths whose changes can trigger a prompt |
+| `ignore` | `**/*_test.go **/testdata/** docs/**` | Paths that never do, applied before `watch` |
+| `journal_committed` | `false` | Whether you commit `.adrlog/journal/`. Set your `.gitignore` to match |
+| `min_files` | `2` | Fewer watched files than this changed, no prompt |
+| `cooldown_seconds` | `900` | The same changed-file set will not prompt twice inside this window |
+| `enforce` | `false` | `true` blocks the turn instead of adding context. Capped by `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` |
+| `ctx_limit` | `5` | Records injected by retrieval, once retrieval exists |
+| `drift_commit_threshold` | `20` | Commits in `affects` paths before a record counts as stale |
+| `drift_window_days` | `90` | How far back drift analysis looks |
+| `proposed_stale_days` | `14` | A proposal older than this is unresolved |
+| `journal_retention_days` | `90` | What `prune` will drop, once `prune` exists |
+
+The last five configure work that is designed but not built. See
+[`docs/future-work.md`](docs/future-work.md).
+
 To turn a repository off again, run `rm -rf .adrlog`. Your records in `docs/adr/` stay.
 
 ## Commands
@@ -159,7 +176,9 @@ Out of scope on purpose: LLM calls from the binary, embeddings or a vector index
 
 ## Status
 
-v0.1 covers record handling and the journal with hooks. Retrieval, the bootstrap audit and drift analysis are designed but not built. I want two weeks of real use showing the prompt produces records before writing any of it, because none of that machinery helps if people already ignore the prompt. `prd.md` holds the plan and the reasoning.
+v0.1 covers record handling and the journal with hooks. Retrieval, the bootstrap audit and drift analysis are designed but not built.
+
+The gate on all of it is two weeks of daily use, a prompt response rate above 0.5, and 10 real records written. It is a behavioural gate on purpose. If the response rate sits below 0.5, none of that machinery helps, because a retrieval ranker that surfaces records nobody writes is elaborate nothing. Fix the `watch` list first. [`docs/future-work.md`](docs/future-work.md) holds the designs and what each one has to prove.
 
 Until then `adrlog init`, `adrlog ctx`, `adrlog audit`, `adrlog prune` and `adrlog lint --fix` refuse and point at the gate. They do not return an empty result, which would read like an answer.
 

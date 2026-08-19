@@ -10,10 +10,10 @@ import (
 )
 
 // Three parallel subagents in one session all append to one file, so "one writer
-// per file" (prd §5.2) does not hold within a session. O_APPEND alone would order
+// per file" does not hold within a session. O_APPEND alone would order
 // the writes but hand every concurrent caller the same seq, and journal_refs
 // points at seq — duplicates would make those pointers ambiguous. This pins the
-// lock, and it is the M2 done-condition in miniature (prd §13).
+// lock, and it is the M2 done-condition in miniature (docs/future-work.md).
 func TestConcurrentAppendGivesUniqueSeq(t *testing.T) {
 	root := t.TempDir()
 	const n = 24
@@ -121,8 +121,8 @@ func TestAppendTruncatesSummary(t *testing.T) {
 	}
 }
 
-// A corrupt line must be reported, not skipped into invisibility (prd §6.1 in
-// spirit: unreadable is a defect, never an absence).
+// A corrupt line must be reported, not skipped into invisibility. Unreadable is
+// a defect, never an absence.
 func TestBrokenLineIsReported(t *testing.T) {
 	root := t.TempDir()
 	Append(root, Entry{Session: "s", Event: "Stop", Summary: "fine"})
@@ -143,7 +143,7 @@ func TestBrokenLineIsReported(t *testing.T) {
 
 // A machine that dies mid-append leaves a torn line. Skipping it when computing
 // the next seq handed its number to the following entry, and journal_refs points
-// at seq to name one specific turn (prd §6.2).
+// at seq to name one specific turn.
 func TestTornLineDoesNotReuseSeq(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 3; i++ {
@@ -174,7 +174,7 @@ func TestTornLineDoesNotReuseSeq(t *testing.T) {
 
 // Appends must not get slower as the journal grows: the scan ran under the
 // exclusive lock, so it slowed every other subagent appending at the same time,
-// and it put the Stop hook on the 50ms budget at ten thousand lines (prd G7).
+// and it put the Stop hook on the 50ms budget at ten thousand lines.
 func TestAppendReadsOnlyTheTail(t *testing.T) {
 	root := t.TempDir()
 	if _, err := Append(root, Entry{Session: "big", Event: "Stop", Summary: "first"}); err != nil {

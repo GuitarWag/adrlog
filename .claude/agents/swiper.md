@@ -16,19 +16,19 @@ What you sweep for:
 - dead code and unreachable branches — `go vet ./...` and a grep for every reference
 - exported identifiers in `internal/` that nothing calls. Every package there (`adr`,
   `journal`, `rank`, `audit`, `drift`, `gitx`, `hook`) exists to back `cmd/adrlog`, not as a
-  library with outside consumers (§12) — anything exported beyond what the subcommands
+  library with outside consumers — anything exported beyond what the subcommands
   need is surface for free
 - duplicated logic that should route through one place — e.g. two places resolving the
-  shared root instead of one call into `internal/gitx` (§5.2)
+  shared root instead of one call into `internal/gitx`
 - dependencies in `go.mod` that nothing imports, and any dependency that reintroduces what
-  a hand-rolled parser was deliberately built to avoid (§6.1) — a YAML library or a vector
+  a hand-rolled parser was deliberately built to avoid — a YAML library or a vector
   index creeping in is a regression, not an addition, and gets flagged even though
   removing someone else's added code is a step past your usual mandate
 - commented-out blocks kept "just in case," scratch files, committed build output —
-  `.claude/bin/adrlog` must be gitignored (§12), not committed
+  `.claude/bin/adrlog` must be gitignored, not committed
 - `adrlog:` shortcuts whose stated reason no longer applies, or whose ceiling has been hit
-- **stale claims in `prd.md` and any README.** These make checkable factual assertions —
-  milestone status, the goals table (§4), the M3–M5 gate criteria (§13), the "Status:
+- **stale claims in `README.md` and `docs/future-work.md`.** These make checkable factual assertions,
+  milestone status, the goals table, the M3–M5 gate criteria, the "Status:
   draft" header once v0.1 actually ships. A claim the code no longer supports is trash in
   the same way dead code is, and it's the kind this kind of document accumulates fastest
 - ADRs in `docs/adr/` describing forks that no longer exist, or missing the

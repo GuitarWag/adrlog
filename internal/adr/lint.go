@@ -31,7 +31,7 @@ type Options struct {
 	// Nil disables that check rather than reporting every glob as orphaned.
 	Tracked []string
 	// RefExists resolves a journal_refs pointer. Nil disables the check. Lint only
-	// ever asks whether a pointer resolves, never whether it is apt (prd §6.3).
+	// ever asks whether a pointer resolves, never whether it is apt.
 	RefExists func(ref string) bool
 	// KnownSession reports whether a session's journal is present at all. Nil
 	// treats every session as absent, which downgrades the checks below rather
@@ -39,8 +39,8 @@ type Options struct {
 	//
 	// This distinction is the difference between "the pointer is wrong" and "the
 	// journal is not here". A journal is legitimately absent on any machine but
-	// the one that wrote it when `journal_committed` is false (prd §6.2), and on
-	// every machine once `prune` drops it at 90 days (prd §14). Treating that as a
+	// the one that wrote it when `journal_committed` is false, and on
+	// every machine once `prune` drops it at 90 days. Treating that as a
 	// failure turns an advisory field into a build break that nobody can fix.
 	KnownSession func(session string) bool
 }
@@ -54,8 +54,8 @@ func Lint(recs []*Record, broken []Broken, opt Options) []Finding {
 		f = append(f, Finding{level, path, id, fmt.Sprintf(format, args...)})
 	}
 
-	// A record the parser cannot read is a broken record, not an invisible one
-	// (prd §6.1). This is the highest-value rule in the file: everything else
+	// A record the parser cannot read is a broken record, not an invisible one.
+	// This is the highest-value rule in the file, because everything else
 	// assumes the record was seen at all.
 	for _, b := range broken {
 		add(Error, b.Path, "", "unreadable record: %s", b.Err)
@@ -97,7 +97,7 @@ func Lint(recs []*Record, broken []Broken, opt Options) []Finding {
 		}
 
 		// Link integrity. A dangling pointer makes the graph lie, and the graph is
-		// the thing that is supposed to be queryable rather than prose (prd G4).
+		// the thing that is supposed to be queryable rather than prose.
 		for _, l := range []struct {
 			key  string
 			vals []string
@@ -113,8 +113,8 @@ func Lint(recs []*Record, broken []Broken, opt Options) []Finding {
 			}
 		}
 
-		// Reciprocity, both directions (prd §5.3). A back-link lost to a race with
-		// another session shows up here rather than staying silent (prd §5.2).
+		// Reciprocity, both directions. A back-link lost to a race with
+		// another session shows up here rather than staying silent.
 		for _, id := range r.Supersedes {
 			if t, ok := byID[id]; ok && !contains(t.SupersededBy, r.ID) {
 				add(Error, t.Path, t.ID, "missing reciprocal superseded_by %q (superseded by that record)", r.ID)
@@ -160,12 +160,12 @@ func Lint(recs []*Record, broken []Broken, opt Options) []Finding {
 		// Empty Alternatives on an accepted record is deliberately a warning to the
 		// human, never an error: failing on it would train the agent to invent
 		// rejected options, and fabricated alternatives are the single worst thing
-		// this log can contain (prd §4).
+		// this log can contain.
 		if r.Status == "accepted" && r.HasSection("Alternatives considered") && r.Section("Alternatives considered") == "" {
 			add(Warning, r.Path, r.ID, "accepted record has an empty Alternatives section (for a human to judge, not to pad)")
 		}
 
-		// Rot check (prd §5.4): a glob matching nothing means the code moved or died.
+		// Rot check: a glob matching nothing means the code moved or died.
 		// MatchAny, not Overlap: this is a boolean question, and Overlap builds the
 		// whole match list without early exit — at a few hundred records over a few
 		// thousand tracked files that was most of lint's runtime, and lint runs

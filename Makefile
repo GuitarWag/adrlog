@@ -25,7 +25,7 @@ test:
 	go vet ./...
 	go test ./...
 
-# The M1 and M2 done-conditions (prd §13) are cross-process and cross-worktree,
+# The M1 and M2 done-conditions (docs/future-work.md) are cross-process and cross-worktree,
 # so they live in a script rather than in `go test`.
 check: install test
 	./scripts/verify-milestones.sh

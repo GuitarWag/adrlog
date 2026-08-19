@@ -48,8 +48,8 @@ func TestParseSupportedSubset(t *testing.T) {
 	if r.ID != "20260804-143210-store-list-price-and-effective-price" {
 		t.Errorf("id = %q", r.ID)
 	}
-	// A trailing comment must not end up inside the value; the prd's own example
-	// frontmatter carries one on the status line.
+	// A trailing comment must not end up inside the value. Real frontmatter carries
+	// one on the status line.
 	if r.Status != "accepted" {
 		t.Errorf("status = %q, comment not stripped", r.Status)
 	}
@@ -71,7 +71,7 @@ func TestParseSupportedSubset(t *testing.T) {
 }
 
 // Unsupported YAML must fail loudly with a line number. This is the hazard the
-// hand-rolled parser creates (prd §6.1): a record reflowed into legal YAML this
+// hand-rolled parser creates: a record reflowed into legal YAML this
 // subset does not implement would otherwise vanish from every index and query
 // while looking perfectly fine on disk.
 func TestParseRejectsUnsupportedYAMLWithLineNumbers(t *testing.T) {
@@ -119,7 +119,7 @@ func TestParseMissingDelimiters(t *testing.T) {
 }
 
 func TestSlugAndID(t *testing.T) {
-	// Six words, lowercased (prd §5.1).
+	// Six words, lowercased.
 	if got := Slug("Store list price and effective price as separate fields"); got != "store-list-price-and-effective-price" {
 		t.Errorf("Slug = %q", got)
 	}
@@ -176,8 +176,8 @@ func TestLintCatchesStructuralDefects(t *testing.T) {
 
 // An accepted record with an empty Alternatives section is a warning to a human,
 // never an error. Failing on it would train the agent to fabricate rejected
-// options, and fabricated alternatives are the worst thing this log can hold
-// (prd §4). This test exists to stop a future tightening of the rule.
+// options, and fabricated alternatives are the worst thing this log can hold.
+// This test exists to stop a future tightening of the rule.
 func TestEmptyAlternativesIsWarningNotError(t *testing.T) {
 	body := "---\nid: 20260101-000000-a\ntitle: A\nstatus: accepted\ndate: 2026-01-01\n---\n\n## Context\nc\n## Decision\nd\n## Alternatives considered\n\n## Consequences\nq\n"
 	r, err := Parse("/r/docs/adr/20260101-000000-a.md", []byte(body))
@@ -193,7 +193,7 @@ func TestEmptyAlternativesIsWarningNotError(t *testing.T) {
 	}
 }
 
-// A glob matching nothing means the code moved or died (prd §5.4 rot check).
+// A glob matching nothing means the code moved or died. This is the rot check.
 func TestLintAffectsRotCheck(t *testing.T) {
 	body := "---\nid: 20260101-000000-a\ntitle: A\nstatus: accepted\ndate: 2026-01-01\naffects:\n  - internal/gone/**\n  - internal/here/**\n---\n\n## Context\nc\n## Decision\nd\n## Alternatives considered\na\n## Consequences\nq\n"
 	r, _ := Parse("/r/docs/adr/20260101-000000-a.md", []byte(body))
@@ -231,8 +231,8 @@ func TestLintJournalRefs(t *testing.T) {
 }
 
 // A journal is legitimately absent on any machine but the one that wrote it when
-// journal_committed is false (prd §6.2), and on every machine once prune drops it
-// at 90 days (prd §14). Treating that as an error turned an advisory field into a
+// journal_committed is false, and on every machine once prune drops it
+// at 90 days. Treating that as an error turned an advisory field into a
 // build break nobody could fix: CI checked out this very repo, found no journal,
 // and failed on ten pointers that were perfectly correct.
 func TestAbsentJournalDowngradesRefCheck(t *testing.T) {
@@ -426,7 +426,7 @@ func TestIndexIsDeterministic(t *testing.T) {
 	first := string(Index(recs))
 	reversed := []*Record{recs[1], recs[0]}
 	// Concurrent regeneration is only safe if input order cannot change the bytes
-	// (prd §5.2): last-write-wins has to mean same-write-wins.
+	//: last-write-wins has to mean same-write-wins.
 	if second := string(Index(reversed)); first != second {
 		t.Error("index output depends on input order; concurrent writes would fight")
 	}

@@ -1,7 +1,7 @@
-// Package hook implements the Claude Code lifecycle events (prd §8).
+// Package hook implements the Claude Code lifecycle events.
 //
 // One binary, five subcommands. Two rules run through all of it: a hook says
-// nothing when there is nothing to say (prd G7), and a hook never fails the turn
+// nothing when there is nothing to say, and a hook never fails the turn
 // it is observing — tracking is best-effort, the user's work is not.
 package hook
 
@@ -33,14 +33,13 @@ const (
 )
 
 // changedFileCap bounds what one entry records. Five sessions of real work a day
-// is a lot of lines, and the transcript path is there for the full picture
-// (prd §14).
+// is a lot of lines, and the transcript path is there for the full picture.
 const changedFileCap = 50
 
 // Payload is the hook input on stdin.
 //
 // Every field is optional on purpose. PreCompact's shape differs from the Stop
-// family and may carry no closing assistant message (prd §8, §16.1), so a missing
+// family and may carry no closing assistant message, so a missing
 // field has to degrade to an absent value — never to a fabricated one that reads
 // like real data.
 type Payload struct {
@@ -61,14 +60,14 @@ type Payload struct {
 // having a .adrlog/ directory at the shared root.
 //
 // The marker is a directory rather than a config file because config is optional
-// (prd §6.4) — every field has a default — so requiring one to switch tracking on
+// (see the config table in README.md) — every field has a default — so requiring one to switch tracking on
 // would mean inventing a file with nothing in it.
 func OptedIn(root string) bool {
 	info, err := os.Stat(filepath.Join(root, ".adrlog"))
 	return err == nil && info.IsDir()
 }
 
-// Session prefers the payload, then the environment (prd §6.3).
+// Session prefers the payload, then the environment.
 func (p Payload) Session() string {
 	if p.SessionID != "" {
 		return p.SessionID
@@ -89,7 +88,7 @@ var eventName = map[string]string{
 //
 // It swallows its own errors to stderr rather than returning them: a failure to
 // journal must not fail the turn. The one thing it must never do is fail
-// silently — invisible tracking loss is the worst shape this can take (prd §12).
+// silently — invisible tracking loss is the worst shape this can take.
 func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if _, ok := eventName[event]; !ok {
 		fmt.Fprintf(stderr, "adrlog hook: unknown event %q\n", event)
@@ -113,10 +112,10 @@ func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	// A repository opts in by having .adrlog/. Without this, a global install would
 	// apply the default watch list everywhere and nudge in repos nobody asked to
-	// track — and §4 is clear that spurious nudges are how the log becomes
+	// track — and is clear that spurious nudges are how the log becomes
 	// wallpaper and the response rate stops meaning anything.
 	//
-	// Silence here is a deliberate exception to "never fail silently" (prd §12),
+	// Silence here is a deliberate exception to "never fail silently",
 	// because an un-opted repo is not tracking-lost, it is tracking-never-asked-for.
 	// `adrlog new` creates .adrlog/, so writing one record switches a repo on.
 	if !OptedIn(repo.Root()) {
@@ -193,7 +192,7 @@ func sessionStart(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr 
 	}
 	if len(broken) > 0 {
 		// Not a silent skip, here least of all: a record nothing can read is
-		// invisible to every query until someone is told (prd §6.1).
+		// invisible to every query until someone is told.
 		lines = append(lines, fmt.Sprintf("%d decision record(s) cannot be parsed; run `adrlog lint`.", len(broken)))
 	}
 
@@ -205,7 +204,7 @@ func sessionStart(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr 
 	}
 
 	// Silence is the default. The branch is context for the rest, not a reason to
-	// speak on its own (prd G7).
+	// speak on its own.
 	if len(lines) == 0 {
 		return 0
 	}
@@ -247,7 +246,7 @@ func stop(repo *gitx.Repo, cfg config.Config, p Payload, stdout, stderr io.Write
 	}
 	watched := watchedFiles(cfg, changed)
 
-	// Suppression, so the nudge stays rare enough to remain worth reading (prd §8).
+	// Suppression, so the nudge stays rare enough to remain worth reading.
 	if len(watched) < cfg.MinFiles {
 		return 0
 	}
@@ -294,7 +293,7 @@ func nudgeMessage(watched []string) string {
 		fmt.Fprintf(&b, "  … and %d more\n", len(watched)-len(show))
 	}
 	// Both branches are offered plainly. A record written to clear a prompt is
-	// worse than no record (prd §4), so declining has to be as easy as complying.
+	// worse than no record, so declining has to be as easy as complying.
 	b.WriteString("\nIf a design decision was made here, write it down: `adrlog new \"<title>\" --affects '<glob>'`.\n")
 	b.WriteString("If nothing was decided, say so and run `adrlog ack --none` — that is a complete answer, and it keeps the log honest.")
 	return b.String()
@@ -320,7 +319,7 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	// Publish the index only when every record was readable. Regenerating first
 	// meant an unreadable record was dropped from the human-facing README and
 	// *then* reported — the index on disk was already wrong by the time anyone
-	// heard about it, which is the silent skip §6.1 rules out wearing a hat.
+	// heard about it, which is the silent skip rules out wearing a hat.
 	if len(broken) == 0 {
 		if err := adr.WriteIndex(root, recs); err != nil {
 			fmt.Fprintf(stderr, "adrlog hook post-tool-use: index: %v\n", err)
@@ -338,7 +337,7 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	if !adr.HasErrors(findings) {
 		return 0
 	}
-	// Exit 2 hands the defect back to Claude on stderr (prd §8).
+	// Exit 2 hands the defect back to Claude on stderr.
 	fmt.Fprintln(stderr, "adrlog lint found problems in the record you just wrote:")
 	for _, f := range findings {
 		if f.Level == adr.Error {
@@ -378,8 +377,8 @@ func toolPath(p Payload) string {
 // alone meant a `git checkout`, a `git stash pop`, or any unrelated session's
 // record answered every open nudge in the repository — with five worktrees
 // sharing one docs/adr/, one record a day pinned the response rate near 1.0 and
-// hid the exact failure §8.1 exists to expose. The session field is what ties a
-// record to the nudge it answers; §8.1 says "within the same session" and means it.
+// hid the exact failure exists to expose. The session field is what ties a
+// record to the nudge it answers; says "within the same session" and means it.
 func recordedBy(root, session string, t time.Time) bool {
 	recs, _, err := adr.LoadAll(root)
 	if err != nil {

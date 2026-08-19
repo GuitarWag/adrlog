@@ -1,8 +1,8 @@
 // Package gitx resolves repository state through the git CLI.
 //
 // Everything adrlog knows about the world comes from git and the filesystem — no
-// network, no service, no LLM (prd §4 non-goals) — which is also what keeps the
-// rest of the tool testable against a scratch repo.
+// network, no service, no LLM. That is also what keeps the rest of the tool
+// testable against a scratch repo.
 package gitx
 
 import (
@@ -17,7 +17,7 @@ import (
 // A Repo is a short-lived, single-shot view: a hook process opens one, reads what
 // it needs and exits. Every field is resolved up front and the changed-file list
 // is cached, because each git subprocess costs about 9ms and the hook budget is
-// 50ms at p99 (prd G7).
+// 50ms at p99.
 type Repo struct {
 	Dir  string // the worktree we were invoked from
 	root string // shared repository root, resolved once
@@ -54,7 +54,7 @@ func Open(dir string) (*Repo, error) {
 		lines = append(lines, "", "")
 	}
 
-	// The shared root, not the worktree (prd §5.2). --show-toplevel alone would
+	// The shared root, not the worktree. --show-toplevel alone would
 	// scatter .adrlog/ across five parallel sessions and lose journals when an
 	// unchanged worktree is auto-removed at session end.
 	common := lines[0]
@@ -83,7 +83,7 @@ func (r *Repo) Root() string { return r.root }
 // Toplevel is this worktree's own checkout path.
 func (r *Repo) Toplevel() string { return r.top }
 
-// WorktreeName keys per-worktree state (prd §5.2). A nudge fingerprint from one
+// WorktreeName keys per-worktree state. A nudge fingerprint from one
 // worktree must not suppress a nudge in another, because their changed-file sets
 // differ — sharing that state would be wrong, not merely racy.
 func (r *Repo) WorktreeName() string {
@@ -103,8 +103,8 @@ func (r *Repo) Branch() string {
 
 // headLen is how much of the sha we keep. git's own short form is variable and
 // would cost another subprocess to compute; 12 is unambiguous well past the size
-// of any repo this runs in, at the cost of a few characters against the prd's
-// 7-character example.
+// of any repo this runs in, at the cost of a few characters against git's own
+// 7-character short form.
 const headLen = 12
 
 // Head returns the abbreviated HEAD sha, or "" on an unborn branch.
@@ -156,13 +156,13 @@ func (r *Repo) readChangedFiles() ([]string, error) {
 
 // IsDirty reports whether a repo-relative path has uncommitted modifications in
 // this worktree. Used to warn before editing a supersede target another session
-// may be holding dirty (prd §5.2).
+// may be holding dirty.
 func (r *Repo) IsDirty(rel string) bool {
 	out, err := r.git("status", "--porcelain", "--", rel)
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
-// TrackedFiles lists tracked paths, for the affects rot check (prd §5.4).
+// TrackedFiles lists tracked paths, for the affects rot check.
 func (r *Repo) TrackedFiles() ([]string, error) {
 	out, err := r.git("ls-files")
 	if err != nil {

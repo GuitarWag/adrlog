@@ -1,7 +1,7 @@
-// Package globs matches `affects` patterns (prd §5.4) against repo-relative paths.
+// Package globs matches `affects` patterns against repo-relative paths.
 //
 // path.Match has no `**`, and `**` is the whole point of an affects glob
-// (`internal/ledger/**`), so the segment walk below is hand-rolled rather than
+// (`internal/pricing/**`), so the segment walk below is hand-rolled rather than
 // delegated. Three callers depend on it — lint's rot check, journal_refs
 // inference, and the retrieval path overlap — so it lives in one place.
 package globs
@@ -25,7 +25,7 @@ func Match(pattern, name string) bool {
 	pattern = strings.TrimPrefix(path.Clean(pattern), "./")
 	name = strings.TrimPrefix(path.Clean(name), "./")
 	// A bare directory prefix is treated as covering the directory's contents, so
-	// `internal/ledger` behaves like `internal/ledger/**`. Writing the trailing
+	// `internal/pricing` behaves like `internal/pricing/**`. Writing the trailing
 	// `/**` is easy to forget and the surprise is silent (an ADR matching nothing).
 	if !strings.ContainsAny(pattern, "*?") && (name == pattern || strings.HasPrefix(name, pattern+"/")) {
 		return true

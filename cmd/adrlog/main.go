@@ -1,9 +1,10 @@
 // Command adrlog records architecture decisions and agent reasoning across
-// parallel Claude Code sessions. See prd.md.
+// parallel Claude Code sessions. See README.md.
 //
-// Scope: this binary implements M1 and M2 (prd §0, §13). Retrieval, audit and
-// drift analysis are gated on evidence from using v0.1, and the commands that
-// would front them say so rather than shipping a stub that looks like an answer.
+// Scope: record handling and the journal with hooks. Retrieval, audit and drift
+// analysis are gated on evidence from real use (docs/future-work.md), and the
+// commands that would front them say so rather than shipping a stub that looks
+// like an answer.
 package main
 
 import (
@@ -76,9 +77,9 @@ func run(args []string) int {
 		}
 		return hook.Run(rest[0], os.Stdin, os.Stdout, os.Stderr)
 	case "init", "ctx", "audit", "prune":
-		// Gated behind the M3+ evidence gate (prd §0, §13). Saying so beats a stub
+		// Gated behind the M3+ evidence gate. Saying so beats a stub
 		// that returns an empty result indistinguishable from a real one.
-		fmt.Fprintf(os.Stderr, "adrlog %s: not built yet — gated behind the v0.1 evidence gate (prd §13).\n", cmd)
+		fmt.Fprintf(os.Stderr, "adrlog %s: not built yet — gated behind the v0.1 evidence gate (docs/future-work.md).\n", cmd)
 		return 2
 	case "version", "--version", "-v":
 		return cmdVersion(rest)
@@ -164,7 +165,7 @@ func emit(v any) {
 }
 
 // parseAfterPositional lets flags follow the positional argument, which is the
-// documented shape of `adrlog new <title> [flags]` (prd §7). Go's flag package
+// documented shape of `adrlog new <title> [flags]`. Go's flag package
 // stops at the first non-flag token, so parsing the raw args would quietly fold
 // every flag into the title — a wrong id and a dropped --supersedes, with no
 // error anywhere.
@@ -248,7 +249,7 @@ func cmdNew(args []string) int {
 	id := adr.NewID(now, title)
 	// Collision needs the same second and the same slug, so this is rare — but
 	// two agents told to record the same decision at once is exactly the case
-	// that produces it, and a silent overwrite would lose one of them (prd §5.1).
+	// that produces it, and a silent overwrite would lose one of them.
 	for n := 2; ; n++ {
 		if _, err := os.Stat(filepath.Join(root, adr.Filename(id))); os.IsNotExist(err) {
 			break
@@ -275,7 +276,7 @@ func cmdNew(args []string) int {
 	// Check every target before touching any of them. Mutating as we went meant a
 	// second, bogus --supersedes aborted the command after the first target had
 	// already been flipped to superseded — status_weight 0.0, so dropped from
-	// retrieval entirely (prd §9) — pointing at a record that was never created.
+	// retrieval entirely (docs/future-work.md) — pointing at a record that was never created.
 	for _, target := range supersedes {
 		if err := checkSupersedeTarget(root, target); err != nil {
 			return fail(err)
@@ -299,7 +300,7 @@ func cmdNew(args []string) int {
 	}
 
 	// Answer an outstanding nudge here, where the session is known for certain,
-	// rather than leaving the Stop hook to infer it from the filesystem (prd §8.1).
+	// rather than leaving the Stop hook to infer it from the filesystem.
 	if sess != "" {
 		if events, err := state.Load(root, repo.WorktreeName()); err == nil {
 			if _, open := state.Outstanding(events, sess); open {
@@ -341,7 +342,7 @@ func cmdNew(args []string) int {
 	return 0
 }
 
-// inferRefs picks the turns that produced this decision (prd §6.3). Advisory: it
+// inferRefs picks the turns that produced this decision. Advisory: it
 // tells a reader where to look, not what is true, so an over-inclusive answer is
 // the right failure direction.
 func inferRefs(root, session string, entries []journal.Entry, affects []string) []string {
@@ -398,7 +399,7 @@ func previousRefSeq(root, session string) int {
 }
 
 // birthCheck compares the supplied globs against what the session actually
-// touched (prd §5.4). The globs are written at the moment of least certainty, and
+// touched. The globs are written at the moment of least certainty, and
 // a wrong one corrupts journal_refs, retrieval and drift at once — so the check
 // runs at the only moment ground truth is available, and warns rather than fails.
 func birthCheck(cfg config.Config, affects []string, entries []journal.Entry) []string {
@@ -478,7 +479,7 @@ func linkSupersede(repo *gitx.Repo, root, target, newID string) ([]string, error
 	// The target may be open and dirty in another of five parallel sessions. We
 	// still write — lint catches broken reciprocity everywhere afterward, so a lost
 	// write is detected rather than silent — but the warning is the cheap half of
-	// that guarantee (prd §5.2).
+	// that guarantee.
 	if repo.IsDirty(rel) {
 		warnings = append(warnings, fmt.Sprintf("%s has uncommitted changes; another session may be editing it, verify the back-link survived", rel))
 	}
@@ -538,7 +539,7 @@ func cmdList(args []string) int {
 	for _, r := range out {
 		fmt.Printf("%-10s %s  %s\n", r["status"], r["id"], r["title"])
 	}
-	// Never let an unreadable record pass as an absent one (prd §6.1).
+	// Never let an unreadable record pass as an absent one.
 	for _, b := range broken {
 		fmt.Fprintf(os.Stderr, "unreadable: %s\n", b.Err)
 	}
@@ -594,12 +595,12 @@ func sectionMap(r *adr.Record) map[string]string {
 func cmdLint(args []string) int {
 	fs := flag.NewFlagSet("lint", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "machine-readable output")
-	fix := fs.Bool("fix", false, "not implemented (prd M5)")
+	fix := fs.Bool("fix", false, "not implemented, see docs/future-work.md")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *fix {
-		fmt.Fprintln(os.Stderr, "adrlog lint --fix: not built yet (prd §13, M5)")
+		fmt.Fprintln(os.Stderr, "adrlog lint --fix: not built yet (docs/future-work.md)")
 		return 2
 	}
 	repo, _, err := open()
@@ -661,7 +662,7 @@ func cmdIndex(args []string) int {
 	}
 
 	// Refuse rather than publish an index that is missing records nobody was told
-	// about (prd §6.1). Writing it anyway was doubly bad: the output is stable
+	// about. Writing it anyway was doubly bad: the output is stable
 	// across runs, so a CI check for a stale index passes while the index is wrong.
 	if len(broken) > 0 {
 		if *asJSON {
@@ -773,13 +774,13 @@ func cmdAck(args []string) int {
 	fs := flag.NewFlagSet("ack", flag.ContinueOnError)
 	none := fs.Bool("none", false, "record that a nudge was answered with no decision")
 	session := fs.String("session", "", "session id (defaults to $CLAUDE_CODE_SESSION_ID)")
-	drift := fs.String("drift", "", "not implemented (prd M4)")
+	drift := fs.String("drift", "", "not implemented, see docs/future-work.md")
 	asJSON := fs.Bool("json", false, "machine-readable output")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *drift != "" {
-		fmt.Fprintln(os.Stderr, "adrlog ack --drift: not built yet (prd §13, M4)")
+		fmt.Fprintln(os.Stderr, "adrlog ack --drift: not built yet (docs/future-work.md)")
 		return 2
 	}
 	if !*none {
@@ -808,7 +809,7 @@ func cmdAck(args []string) int {
 }
 
 // cmdDrift is the M2 slice: the nudge response rate only. Stale, orphaned and
-// unresolved findings are M4 (prd §11, §13), and reporting an empty list for them
+// unresolved findings are M4 (docs/future-work.md,), and reporting an empty list for them
 // would read as "nothing is drifting" rather than "nothing was checked".
 func cmdDrift(args []string) int {
 	fs := flag.NewFlagSet("drift", flag.ContinueOnError)
@@ -838,7 +839,7 @@ func cmdDrift(args []string) int {
 	if rate.Finding != "" {
 		fmt.Println("finding:", rate.Finding)
 	}
-	fmt.Println("not checked: stale, orphaned, unresolved (prd §13, M4)")
+	fmt.Println("not checked: stale, orphaned, unresolved (docs/future-work.md)")
 	return 0
 }
 

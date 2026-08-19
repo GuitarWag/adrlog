@@ -18,7 +18,7 @@ tags: [install, hooks]
 
 ## Context
 
-prd §12 describes install as `cp -r` plus `make install` into each repository:
+The plan described install as `cp -r` plus `make install` into each repository:
 the binary at `.claude/bin/adrlog`, hooks in that repo's `.claude/settings.json`.
 That is one wiring step per repository, and the binary duplicated into every one
 of them.
@@ -34,19 +34,19 @@ directory at its shared root. `hook.OptedIn` checks for it and every event
 returns immediately when it is absent.
 
 The marker is a directory, not a config file, because config is optional. Every
-field in §6.4 has a default, so requiring one would mean inventing an empty file
+field has a default, so requiring one would mean inventing an empty file
 to act as a switch. `adrlog new` creates `.adrlog/`, so writing a first record turns a
 repository on without a separate step.
 
 The alternative to an opt-in marker was global hooks that run everywhere. That
-applies the default `watch` list to repositories nobody chose to track, and §4 and
-§8.1 both say spurious nudges are how the log becomes wallpaper and the response
-rate stops meaning anything. Tracking everything by default would corrupt the one
+applies the default `watch` list to repositories nobody chose to track. Spurious
+nudges are how the log becomes wallpaper and the response rate stops meaning
+anything. Tracking everything by default would corrupt the one
 metric that gates M3 onward.
 
 ## Alternatives considered
 
-Per-repo install as written in §12. Rejected for the repetition, and because five
+Per-repo install, as originally planned. Rejected for the repetition, and because five
 copies of a binary drift the moment one repository is rebuilt and another is not.
 
 Global hooks with no opt-in. Rejected above: it trades a setup step for a corrupted
@@ -58,7 +58,7 @@ kind of thing someone later deletes as dead weight.
 
 ## Consequences
 
-Silence in an un-opted repository is a deliberate exception to §12's rule that
+Silence in an un-opted repository is a deliberate exception to the rule that
 tracking must never fail silently. The distinction being drawn is that an un-opted
 repository is not tracking-lost, it is tracking-never-asked-for. Where the rule
 still applies it is still enforced: the SessionStart hook checks for

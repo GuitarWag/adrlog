@@ -1,4 +1,4 @@
-// Package config loads .adrlog/config.json (prd §6.4). Every field is optional;
+// Package config loads .adrlog/config.json (see the config table in README.md). Every field is optional;
 // a missing file is not an error, it is the defaults.
 package config
 
