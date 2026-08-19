@@ -334,6 +334,13 @@ func RefResolver(entries []Entry) func(string) bool {
 	return func(ref string) bool { return known[ref] }
 }
 
+// SessionExists reports whether a session's journal file is on disk. Lint uses it
+// to tell an unresolvable pointer from an absent journal (prd §6.2, §14).
+func SessionExists(root, session string) bool {
+	info, err := os.Stat(FilePath(root, session))
+	return err == nil && !info.IsDir()
+}
+
 // RefResolverFor builds a resolver reading only the sessions the refs name.
 //
 // Loading every journal to check a handful of pointers meant one long-running

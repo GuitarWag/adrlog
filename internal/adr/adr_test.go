@@ -213,13 +213,40 @@ func TestLintAffectsRotCheck(t *testing.T) {
 func TestLintJournalRefs(t *testing.T) {
 	body := "---\nid: 20260101-000000-a\ntitle: A\nstatus: accepted\ndate: 2026-01-01\njournal_refs: [abc#1, malformed, abc#99]\n---\n\n## Context\nc\n## Decision\nd\n## Alternatives considered\na\n## Consequences\nq\n"
 	r, _ := Parse("/r/docs/adr/20260101-000000-a.md", []byte(body))
-	f := Lint([]*Record{r}, nil, Options{RefExists: func(ref string) bool { return ref == "abc#1" }})
+	f := Lint([]*Record{r}, nil, Options{
+		RefExists:    func(ref string) bool { return ref == "abc#1" },
+		KnownSession: func(s string) bool { return s == "abc" },
+	})
 	out := renderFindings(f)
 	if !strings.Contains(out, `malformed journal_ref "malformed"`) {
 		t.Errorf("expected malformed ref finding:\n%s", out)
 	}
-	if !strings.Contains(out, `journal_ref "abc#99" does not resolve`) {
-		t.Errorf("expected unresolved ref finding:\n%s", out)
+	// The journal for "abc" is present and has no turn 99, so the pointer is wrong.
+	if !strings.Contains(out, `journal_ref "abc#99" names a turn`) {
+		t.Errorf("expected an error for a wrong ref into a present journal:\n%s", out)
+	}
+	if !HasErrors(f) {
+		t.Error("a wrong ref into a present journal should fail lint")
+	}
+}
+
+// A journal is legitimately absent on any machine but the one that wrote it when
+// journal_committed is false (prd §6.2), and on every machine once prune drops it
+// at 90 days (prd §14). Treating that as an error turned an advisory field into a
+// build break nobody could fix: CI checked out this very repo, found no journal,
+// and failed on ten pointers that were perfectly correct.
+func TestAbsentJournalDowngradesRefCheck(t *testing.T) {
+	body := "---\nid: 20260101-000000-a\ntitle: A\nstatus: accepted\ndate: 2026-01-01\njournal_refs: [gone#1, gone#2]\n---\n\n## Context\nc\n## Decision\nd\n## Alternatives considered\na\n## Consequences\nq\n"
+	r, _ := Parse("/r/docs/adr/20260101-000000-a.md", []byte(body))
+	f := Lint([]*Record{r}, nil, Options{
+		RefExists:    func(string) bool { return false },
+		KnownSession: func(string) bool { return false },
+	})
+	if HasErrors(f) {
+		t.Fatalf("an absent journal must not fail lint:\n%s", renderFindings(f))
+	}
+	if !strings.Contains(renderFindings(f), "cannot be checked") {
+		t.Errorf("expected a warning naming the absent session:\n%s", renderFindings(f))
 	}
 }
 

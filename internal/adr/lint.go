@@ -33,6 +33,16 @@ type Options struct {
 	// RefExists resolves a journal_refs pointer. Nil disables the check. Lint only
 	// ever asks whether a pointer resolves, never whether it is apt (prd §6.3).
 	RefExists func(ref string) bool
+	// KnownSession reports whether a session's journal is present at all. Nil
+	// treats every session as absent, which downgrades the checks below rather
+	// than failing them.
+	//
+	// This distinction is the difference between "the pointer is wrong" and "the
+	// journal is not here". A journal is legitimately absent on any machine but
+	// the one that wrote it when `journal_committed` is false (prd §6.2), and on
+	// every machine once `prune` drops it at 90 days (prd §14). Treating that as a
+	// failure turns an advisory field into a build break that nobody can fix.
+	KnownSession func(session string) bool
 }
 
 var journalRef = regexp.MustCompile(`^[^#\s]+#\d+$`)
@@ -120,12 +130,22 @@ func Lint(recs []*Record, broken []Broken, opt Options) []Finding {
 		}
 
 		for _, ref := range r.JournalRefs {
+			// A malformed pointer is always an error: it is wrong on its face, and no
+			// journal anywhere could make `session#notanumber` resolve.
 			if !journalRef.MatchString(ref) {
 				add(Error, r.Path, r.ID, "malformed journal_ref %q, want session#seq", ref)
 				continue
 			}
-			if opt.RefExists != nil && !opt.RefExists(ref) {
-				add(Error, r.Path, r.ID, "journal_ref %q does not resolve to an entry", ref)
+			if opt.RefExists == nil || opt.RefExists(ref) {
+				continue
+			}
+			session, _, _ := strings.Cut(ref, "#")
+			if opt.KnownSession != nil && opt.KnownSession(session) {
+				// The journal is here and does not contain that turn, so the pointer is
+				// genuinely wrong.
+				add(Error, r.Path, r.ID, "journal_ref %q names a turn its session's journal does not have", ref)
+			} else {
+				add(Warning, r.Path, r.ID, "journal_ref %q cannot be checked, session %q has no journal here", ref, session)
 			}
 		}
 

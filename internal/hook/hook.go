@@ -331,7 +331,10 @@ func postToolUse(repo *gitx.Repo, p Payload, stdout, stderr io.Writer) int {
 	// below are dropped on the floor — and scanning every tracked file for every
 	// affects glob to produce them was most of this hook's runtime. `adrlog lint`
 	// still runs the full check for the human and for CI, where no budget applies.
-	findings := adr.Lint(recs, broken, adr.Options{RefExists: refResolver(root, recs)})
+	findings := adr.Lint(recs, broken, adr.Options{
+		RefExists:    refResolver(root, recs),
+		KnownSession: func(s string) bool { return journal.SessionExists(root, s) },
+	})
 	if !adr.HasErrors(findings) {
 		return 0
 	}

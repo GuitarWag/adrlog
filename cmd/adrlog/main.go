@@ -617,7 +617,11 @@ func cmdLint(args []string) int {
 	for _, r := range recs {
 		refs = append(refs, r.JournalRefs...)
 	}
-	findings := adr.Lint(recs, broken, adr.Options{Tracked: tracked, RefExists: journal.RefResolverFor(root, refs)})
+	findings := adr.Lint(recs, broken, adr.Options{
+		Tracked:      tracked,
+		RefExists:    journal.RefResolverFor(root, refs),
+		KnownSession: func(s string) bool { return journal.SessionExists(root, s) },
+	})
 	for _, b := range brokenJournal {
 		findings = append(findings, adr.Finding{
 			Level: adr.Error, Path: b.Path,
