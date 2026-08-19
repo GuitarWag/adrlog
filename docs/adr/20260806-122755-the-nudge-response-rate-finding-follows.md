@@ -25,8 +25,8 @@ it was built to catch.
 
 ## Decision
 
-The finding fires whenever the rate is not above the floor — `rate <= 0.5` — so
-the instrument and the gate it feeds cannot disagree. `ResponseFloor` lives in
+The finding fires whenever the rate is not above the floor, meaning `rate <= 0.5`,
+so the instrument and the gate it feeds cannot disagree. `ResponseFloor` lives in
 `internal/state/state.go`, not in `.adrlog/config.json`, because changing it changes
 what the M3 gate means and that should not be a per-repo setting.
 
@@ -37,8 +37,8 @@ the gate silently.
 
 Relax the gate to "0.5 or above" instead, making §8.1 correct. Rejected because
 the gate wording appears twice (G5 and §13) against §8.1's once, and because the
-threshold is an admitted guess (§16.4) — when in doubt the more conservative
-reading is the one that reports.
+threshold is an admitted guess (§16.4). When in doubt, take the reading that
+reports.
 
 ## Consequences
 

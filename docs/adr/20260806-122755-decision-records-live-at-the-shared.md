@@ -39,8 +39,8 @@ the same set and has the same requirement.
 ## Alternatives considered
 
 Per-worktree records, committed on the branch that produced them. This is the
-better fit for review — the record arrives in the pull request next to the code it
-explains — and it is what "merge cleanly" implies. Rejected because pre-merge
+better fit for review, because the record arrives in the pull request next to the
+code it explains, and it is what "merge cleanly" implies. Rejected because pre-merge
 invisibility defeats the point, and because the collision the timestamp id exists
 to prevent (§5.1, G1) only arises when sessions share a directory, which is
 evidence the shared directory was the intent.

@@ -1,6 +1,6 @@
 # adrlog
 
-Decision records and agent reasoning, captured across parallel Claude Code sessions.
+Keeps decision records and agent reasoning from getting lost across parallel Claude Code sessions.
 
 `adrlog` is one Go binary with no dependencies. It stores two things:
 
@@ -30,9 +30,9 @@ Existing ADR tools address none of 1, 2 or 3. They assume one human, in one chec
 root = dirname(git rev-parse --git-common-dir)
 ```
 
-`git rev-parse --show-toplevel` returns the worktree. State written there scatters across worktrees, and it dies when git removes an unchanged worktree at session end. The shared root does not move, so five sessions write to one place and each one sees the others' records.
+`git rev-parse --show-toplevel` returns the worktree. Write state there and it scatters. Worse, git deletes an unchanged worktree at session end and takes the state with it. The shared root does not move, so five sessions write to one place and each one reads the others' records.
 
-**Everything is deterministic.** No LLM call, no embedding, no network. Every answer comes from git and the filesystem, which is also why the whole tool is testable against a scratch repo.
+**Everything is deterministic.** No LLM call, no embedding, no network. Every answer comes from git and the filesystem. That is also why the whole tool tests against a scratch repo instead of needing a live anything.
 
 ## Install
 
@@ -54,15 +54,16 @@ make install-global      # builds to ~/.local/bin/adrlog
 
 Check what you have with `adrlog version`.
 
-**Platforms.** macOS and Linux, on amd64 and arm64. The lock that keeps journal
-sequence numbers unique under parallel subagents is `flock`, so the build
-excludes Windows rather than shipping an untested substitute for the thing that
-guards against duplicate entries. See `internal/flock`.
+**Platforms.** macOS and Linux, on amd64 and arm64. `flock` is what stops two
+subagents claiming the same journal sequence number, and Windows has no `flock`.
+The build excludes it rather than ship a replacement I cannot test. A wrong lock
+does not crash. It writes two turns under one number and you find out months
+later. See `internal/flock`.
 
-**Importing it.** This is a command, not a library. Everything sits under
-`internal/`, so the module exposes no importable API and none of it is subject
-to compatibility promises. Read the records and the journal through the CLI,
-where every command takes `--json`.
+**Importing it.** This is a command, not a library. Every package sits under
+`internal/`, so there is no importable API and I promise nothing about
+compatibility. Read the records and the journal through the CLI, where every
+command takes `--json`.
 
 ## Wire up the hooks
 
@@ -94,9 +95,9 @@ mkdir .adrlog                    # explicit switch
 adrlog new "<decision title>"    # writes a record and creates .adrlog/ for you
 ```
 
-`adrlog` stays completely silent in every repository without one: no journal, no prompt, no output on either stream.
+In every repository without one, `adrlog` writes nothing, asks nothing, and prints nothing on either stream.
 
-Caution: the default watch list is `internal/** cmd/** migrations/** api/** **/*.tf`. A list that does not fit your repository produces prompts for changes that hold no decision, and those train you to ignore the tool. Set it in `.adrlog/config.json`:
+Set the watch list before you start. The default is `internal/** cmd/** migrations/** api/** **/*.tf`, and a list that does not fit your repository asks about changes that hold no decision. Those prompts train you to ignore the tool, which is the one failure it cannot recover from. Put yours in `.adrlog/config.json`:
 
 ```json
 {
@@ -138,29 +139,31 @@ Every command accepts `--json`, so a skill can read the output without scraping 
 | `PreCompact` | Appends a turn only. It brackets reasoning that compaction would discard. |
 | `PostToolUse` | Lints a record you just wrote and regenerates the index. Exit 2 hands the defect back to Claude. |
 
-Hooks stay under a 50ms budget at the 99th percentile. Measured at 200 records, 2000 tracked files and a 10,000-line journal: `post-tool-use` 17ms, `stop` 28ms, `session-start` 17ms.
+The budget is 50ms. Measured against 100 records, 600 tracked files and a 5,000-line journal, the p99 is 12ms for `post-tool-use`, 18ms for `session-start` and 33ms for `stop`. `scripts/verify-milestones.sh` re-measures on every run and fails the build if the median crosses 50ms.
 
 ## The prompt, and why it counts itself
 
 When watched files change and no record exists, the `Stop` hook asks for one. It suppresses itself when fewer than `min_files` changed, when a record is already open, and when the same changed-file set already asked inside the cooldown.
 
-A prompt that gets declined every time, forever, leaves every other measure looking healthy while the tool quietly stops working. So `adrlog` counts them. `adrlog drift` reports the answered share over 30 days. At or below 0.5 it says so, and the reading means one of two things: the watch list is too broad, or the log has become something nobody reads. Both need a person to look, not more automation.
+This is the failure I worried about most. An agent that declines every prompt, forever, leaves every other measure looking healthy while the log stops growing. Nothing breaks. Nothing turns red. So `adrlog` counts the prompts and the answers, and `adrlog drift` reports the answered share over 30 days.
+
+At or below 0.5 it says so. Either the watch list is too broad and the prompts are noise, or the log has become something nobody reads. Both want a person looking at the config, not more automation.
 
 Declining is a complete answer. Run `adrlog ack --none`.
 
 ## What it will not do
 
-A record written to satisfy a check is worse than no record. So an accepted record with an empty Alternatives section is a warning addressed to a human, never an error the agent must clear. Failing on it would teach the agent to invent rejected options, and invented alternatives are the worst thing this log can hold.
+A record written to satisfy a check is worse than no record. So an accepted record with an empty Alternatives section warns the human reading the output. It is never an error the agent has to clear. Fail on it and the agent learns to invent rejected options, and invented alternatives are the worst thing this log can hold.
 
-Also out of scope, deliberately: LLM calls from the binary, embeddings or a vector index, Confluence or Notion or Jira sync, a web UI, cross-repo aggregation, and version control other than git.
+Out of scope on purpose: LLM calls from the binary, embeddings or a vector index, Confluence or Notion or Jira sync, a web UI, cross-repo aggregation, and version control other than git.
 
 ## Status
 
-v0.1 covers core record handling and the journal with hooks. Retrieval, the bootstrap audit and drift analysis are designed but not built. They are gated on evidence that the prompt produces records rather than noise. `prd.md` holds the full plan and the reasoning.
+v0.1 covers record handling and the journal with hooks. Retrieval, the bootstrap audit and drift analysis are designed but not built. I want two weeks of real use showing the prompt produces records before writing any of it, because none of that machinery helps if people already ignore the prompt. `prd.md` holds the plan and the reasoning.
 
-`adrlog init`, `adrlog ctx`, `adrlog audit`, `adrlog prune` and `adrlog lint --fix` refuse with a pointer to that gate, rather than returning an empty result that reads like an answer.
+Until then `adrlog init`, `adrlog ctx`, `adrlog audit`, `adrlog prune` and `adrlog lint --fix` refuse and point at the gate. They do not return an empty result, which would read like an answer.
 
-Records of the design decisions live in `docs/adr/`, written with the tool.
+The design decisions live in `docs/adr/`, written with the tool.
 
 ## Develop
 

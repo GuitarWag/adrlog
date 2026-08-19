@@ -33,8 +33,8 @@ One binary at `~/.local/bin/adrlog`, hooks declared once in
 directory at its shared root. `hook.OptedIn` checks for it and every event
 returns immediately when it is absent.
 
-The marker is a directory, not a config file, because config is optional — every
-field in §6.4 has a default — so requiring one would mean inventing an empty file
+The marker is a directory, not a config file, because config is optional. Every
+field in §6.4 has a default, so requiring one would mean inventing an empty file
 to act as a switch. `adrlog new` creates `.adrlog/`, so writing a first record turns a
 repository on without a separate step.
 
@@ -66,7 +66,7 @@ still applies it is still enforced: the SessionStart hook checks for
 that did opt in.
 
 This repository's own `.claude/settings.json` is deleted. Keeping it would have
-double-fired every hook here, since project and global hooks both run — two
+double-fired every hook here, since project and global hooks both run. Two
 journal entries and two nudges per turn.
 
 `make install-global` builds to `~/.local/bin`. Upgrading is that one command;

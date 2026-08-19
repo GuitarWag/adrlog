@@ -44,8 +44,8 @@ all, which is worse than losing the last one to a kernel panic.
 
 ## Consequences
 
-A machine crash — not a process crash, which the page cache survives — can lose
-journal entries written in the seconds before it. Given the journal records agent
+A machine crash can lose journal entries written in the seconds before it. A
+process crash cannot, because the page cache survives that. Given the journal records agent
 reasoning rather than money or state, that is acceptable.
 
 The 50ms budget is now defended by a check in `scripts/verify-milestones.sh`
