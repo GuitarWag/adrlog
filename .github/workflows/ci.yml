@@ -10,7 +10,14 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The lock that keeps seq unique is flock, so the tool is Unix-only by
+    # design (internal/flock). Both supported platforms get exercised rather
+    # than assumed.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +54,14 @@ jobs:
           git config --global user.email ci@example.com
           git config --global user.name ci
           make check
+
+      - name: Cross-compile the supported platforms
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null ./cmd/adrlog
+            echo "  built $target"
+          done
 
   lint-records:
     runs-on: ubuntu-latest

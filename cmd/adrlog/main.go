@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +39,7 @@ const usage = `adrlog — decision tracking for parallel agent sessions
   adrlog ack           --none
   adrlog drift
   adrlog hook <event>  session-start | stop | subagent-stop | pre-compact | post-tool-use
+  adrlog version
 
 Every command takes --json.
 `
@@ -77,6 +80,8 @@ func run(args []string) int {
 		// that returns an empty result indistinguishable from a real one.
 		fmt.Fprintf(os.Stderr, "adrlog %s: not built yet — gated behind the v0.1 evidence gate (prd §13).\n", cmd)
 		return 2
+	case "version", "--version", "-v":
+		return cmdVersion(rest)
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return 0
@@ -84,6 +89,57 @@ func run(args []string) int {
 		fmt.Fprintf(os.Stderr, "adrlog: unknown command %q\n\n%s", cmd, usage)
 		return 2
 	}
+}
+
+// cmdVersion reports the build.
+//
+// Read from the embedded build info rather than stamped in with -ldflags, so
+// `go install ...@v0.1.0` reports v0.1.0 without the Makefile knowing anything
+// about versions. A build from a working tree reports the revision instead,
+// which is what a contributor running `make install` wants to see.
+func cmdVersion(args []string) int {
+	fs := flag.NewFlagSet("version", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	v := map[string]string{"version": "unknown", "go": runtime.Version()}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" {
+			v["version"] = info.Main.Version
+		}
+		for _, s := range info.Settings {
+			switch s.Key {
+			case "vcs.revision":
+				v["revision"] = s.Value
+			case "vcs.time":
+				v["built"] = s.Value
+			case "vcs.modified":
+				v["dirty"] = s.Value
+			case "GOOS":
+				v["os"] = s.Value
+			case "GOARCH":
+				v["arch"] = s.Value
+			}
+		}
+	}
+	if *asJSON {
+		emit(v)
+		return 0
+	}
+	line := "adrlog " + v["version"]
+	if r := v["revision"]; r != "" {
+		if len(r) > 12 {
+			r = r[:12]
+		}
+		if v["dirty"] == "true" {
+			r += "-dirty"
+		}
+		line += " (" + r + ")"
+	}
+	fmt.Printf("%s  %s\n", line, v["go"])
+	return 0
 }
 
 // open resolves the repo and config together, since every command needs both.

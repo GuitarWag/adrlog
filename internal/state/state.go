@@ -16,8 +16,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/GuitarWag/adrlog/internal/flock"
 )
 
 // Kinds of ledger event.
@@ -81,10 +82,11 @@ func Append(root, worktree string, e Event) error {
 		return err
 	}
 	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := flock.Lock(f)
+	if err != nil {
 		return err
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer unlock()
 	return write(f, e)
 }
 
@@ -101,10 +103,11 @@ func TryNudge(root, worktree string, e Event, cooldown time.Duration) (bool, err
 		return false, err
 	}
 	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := flock.Lock(f)
+	if err != nil {
 		return false, err
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer unlock()
 
 	events, err := readEvents(f)
 	if err != nil {

@@ -40,11 +40,29 @@ root = dirname(git rev-parse --git-common-dir)
 go install github.com/GuitarWag/adrlog/cmd/adrlog@latest
 ```
 
+Or pin a release:
+
+```
+go install github.com/GuitarWag/adrlog/cmd/adrlog@v0.1.0
+```
+
 Or build from a clone:
 
 ```
 make install-global      # builds to ~/.local/bin/adrlog
 ```
+
+Check what you have with `adrlog version`.
+
+**Platforms.** macOS and Linux, on amd64 and arm64. The lock that keeps journal
+sequence numbers unique under parallel subagents is `flock`, so the build
+excludes Windows rather than shipping an untested substitute for the thing that
+guards against duplicate entries. See `internal/flock`.
+
+**Importing it.** This is a command, not a library. Everything sits under
+`internal/`, so the module exposes no importable API and none of it is subject
+to compatibility promises. Read the records and the journal through the CLI,
+where every command takes `--json`.
 
 ## Wire up the hooks
 
@@ -108,6 +126,7 @@ Every command accepts `--json`, so a skill can read the output without scraping 
 | `adrlog ack --none` | Records that a prompt was answered with no decision |
 | `adrlog drift` | Reports the prompt response rate |
 | `adrlog hook <event>` | Runs a lifecycle hook |
+| `adrlog version` | Reports the build, read from the embedded build info |
 
 ## What the hooks do
 

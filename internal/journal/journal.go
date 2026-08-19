@@ -16,9 +16,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"github.com/GuitarWag/adrlog/internal/flock"
 )
 
 // Dir is where journals live, relative to the shared root.
@@ -75,10 +76,11 @@ func Append(root string, e Entry) (Entry, error) {
 		return e, err
 	}
 	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := flock.Lock(f)
+	if err != nil {
 		return e, err
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer unlock()
 
 	last, err := highWaterSeq(f)
 	if err != nil {
