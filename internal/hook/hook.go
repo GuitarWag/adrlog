@@ -68,6 +68,24 @@ func OptedIn(root string) bool {
 	return err == nil && info.IsDir()
 }
 
+// LegacyDir is the opt-in marker used before the tool was renamed from dlog.
+const LegacyDir = ".dlog"
+
+// legacyNotice tells the reader how to migrate. The move is a rename and nothing
+// else: the journal format, the record format and the config keys are unchanged,
+// so the directory carries over as it stands.
+const legacyNotice = "adrlog: this repository is opted in under the old name (.dlog/), so nothing has been tracked since the rename.\n" +
+	"Migrate with:\n" +
+	"  git mv .dlog .adrlog   # or: mv .dlog .adrlog, if it is not tracked\n" +
+	"  sd -F .dlog .adrlog .gitignore   # if .gitignore names it\n" +
+	"Journals, records and config carry over unchanged."
+
+// hasLegacyOptIn reports whether the repository opted in under the former name.
+func hasLegacyOptIn(root string) bool {
+	info, err := os.Stat(filepath.Join(root, LegacyDir))
+	return err == nil && info.IsDir()
+}
+
 // Session prefers the payload, then the environment (prd §6.3).
 func (p Payload) Session() string {
 	if p.SessionID != "" {
@@ -120,6 +138,13 @@ func Run(event string, stdin io.Reader, stdout, stderr io.Writer) int {
 	// because an un-opted repo is not tracking-lost, it is tracking-never-asked-for.
 	// `adrlog new` creates .adrlog/, so writing one record switches a repo on.
 	if !OptedIn(repo.Root()) {
+		// A repository opted in under the tool's former name is the one case where
+		// silence is wrong: it asked to be tracked, and a rename stopped tracking it
+		// without telling anyone. Say so once per session, the same way a missing
+		// binary does (prd §12), and stay quiet on every other event.
+		if event == SessionStart && hasLegacyOptIn(repo.Root()) {
+			writeContext(stdout, "SessionStart", legacyNotice)
+		}
 		return 0
 	}
 	cfg, err := config.Load(repo.Root())
