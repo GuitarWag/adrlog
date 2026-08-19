@@ -93,27 +93,6 @@ Every field is optional. Delete the file and the defaults apply.
 
 To turn a repository off again, run `rm -rf .adrlog`. Your records in `docs/adr/` stay.
 
-## Migrating from the old name
-
-The tool was called `dlog` before it was published, and it used a `.dlog/` directory. A repository still holding one is no longer tracked, because the opt-in marker changed. `adrlog` reports this once per session at `SessionStart` rather than going quiet.
-
-The move is a rename and nothing else. The journal format, the record format and the config keys are unchanged, so the directory carries over as it stands:
-
-```
-git mv .dlog .adrlog             # or plain mv, if the directory is not tracked
-sd -F .dlog .adrlog .gitignore   # only if .gitignore names it
-```
-
-Then clean up anything left from the per-repo install that preceded the global one:
-
-```
-rm -f .claude/bin/dlog                    # the old binary
-# and remove any dlog hook entries from the repo's .claude/settings.json,
-# since the global hooks in ~/.claude/settings.json now cover every repository
-```
-
-Records in `docs/adr/` need no change at all. Their frontmatter schema did not move.
-
 ## Commands
 
 Every command accepts `--json`, so a skill can read the output without scraping text.

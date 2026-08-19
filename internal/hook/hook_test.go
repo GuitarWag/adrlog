@@ -64,38 +64,6 @@ func TestUnoptedRepoIsUntouched(t *testing.T) {
 	}
 }
 
-// A repository opted in under the former name asked to be tracked, and the
-// rename stopped tracking it. That is the one case where the opt-in guard must
-// not stay quiet — otherwise the journal simply stops and nothing says why.
-func TestLegacyOptInIsReportedOncePerSession(t *testing.T) {
-	dir := scratchRepo(t, false)
-	if err := os.MkdirAll(filepath.Join(dir, LegacyDir, "journal"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	code, out, _ := run(t, SessionStart, dir, map[string]any{"session_id": "s"})
-	if code != 0 {
-		t.Fatalf("exit %d, want 0", code)
-	}
-	if !strings.Contains(out, ".dlog") || !strings.Contains(out, "git mv") {
-		t.Errorf("SessionStart did not explain the migration:\n%s", out)
-	}
-
-	// Every other event stays silent. Repeating this on each turn would be noise,
-	// and the session already heard it once.
-	for _, event := range []string{Stop, SubagentStop, PreCompact, PostToolUse} {
-		_, out, errOut := run(t, event, dir, map[string]any{"session_id": "s"})
-		if out != "" || errOut != "" {
-			t.Errorf("%s repeated the notice\nstdout: %q\nstderr: %q", event, out, errOut)
-		}
-	}
-
-	// It still must not track anything: the marker is .adrlog, not .dlog.
-	if _, err := os.Stat(filepath.Join(dir, ".adrlog")); !os.IsNotExist(err) {
-		t.Error("the legacy notice created .adrlog/ instead of leaving the choice to the user")
-	}
-}
-
 func TestOptedInRepoJournals(t *testing.T) {
 	dir := scratchRepo(t, true)
 	code, _, errOut := run(t, SubagentStop, dir, map[string]any{
