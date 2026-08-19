@@ -398,7 +398,7 @@ docs/adr/
 
 Install is `cp -r` plus `make install`. Since this is a binary rather than a script, `make install` must run before the hooks work. When the binary is missing, the hook wrapper does not fail every turn, but it must not fail *silently* either — invisible tracking loss is the worst failure shape, because nothing looks broken while the journal quietly stops. The `SessionStart` hook entry is therefore a one-line shell check that emits a single "adrlog binary missing, run make install; decision tracking is off" as `additionalContext` once per session, and all other hook entries exit 0 quietly.
 
-Single-platform (darwin/arm64) is fine for now. A teammate on linux means building on install, which is a Makefile change, not a design change.
+Supported platforms are macOS and Linux, on amd64 and arm64. CI runs the full suite on both and cross-compiles all four targets. Windows is excluded by a build constraint rather than left to fail at compile time, because the lock that keeps journal `seq` unique is `flock`; see the ADR on platform support.
 
 ---
 

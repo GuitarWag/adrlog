@@ -4,6 +4,7 @@
 
 | Record | Status | Date | Tags |
 |---|---|---|---|
+| [Support macOS and Linux only, and exclude Windows at build time](20260819-141610-support-macos-and-linux-only-and.md) | accepted | 2026-08-19 | platform, build |
 | [Install one global binary with per-repo opt-in](20260810-124629-install-one-global-binary-with-per.md) | accepted | 2026-08-10 | install, hooks |
 | [The nudge response-rate finding follows the gate not the prose](20260806-122755-the-nudge-response-rate-finding-follows.md) | accepted | 2026-08-06 | nudge, metrics |
 | [Journal appends do not fsync](20260806-122755-journal-appends-do-not-fsync.md) | accepted | 2026-08-06 | journal, performance |
@@ -13,8 +14,9 @@
 
 ```mermaid
 graph TD
-  n0["Install one global binary with per-repo opt-in"]
-  n1["The nudge response-rate finding follows the gate not the pr…"]
-  n2["Journal appends do not fsync"]
-  n3["Decision records live at the shared repository root"]
+  n0["Support macOS and Linux only, and exclude Windows at build …"]
+  n1["Install one global binary with per-repo opt-in"]
+  n2["The nudge response-rate finding follows the gate not the pr…"]
+  n3["Journal appends do not fsync"]
+  n4["Decision records live at the shared repository root"]
 ```
